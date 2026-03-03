@@ -65,7 +65,9 @@ public class AsymmetricSignatureImpl extends Signature implements SignatureMessa
         this.paddingAlgorithm = paddingAlgorithm;
         isRecovery = false;
         if (isRawECDSAWithoutHash()) {
-            engine = new DSADigestSigner(new ECDSASigner(), new BouncyCastlePrecomputedOrDigestProxy(new NullDigest()));
+            log.debug("AsymmetricSignatureImpl: raw ECDSA (ALG_NULL/SIG_CIPHER_ECDSA/PAD_NULL) path");
+            digest = new BouncyCastlePrecomputedOrDigestProxy(new NullDigest());
+            engine = new DSADigestSigner(new ECDSASigner(), (BouncyCastlePrecomputedOrDigestProxy) digest);
             return;
         }
         switch (algorithm) {
@@ -181,6 +183,10 @@ public class AsymmetricSignatureImpl extends Signature implements SignatureMessa
     }
 
     public void init(Key theKey, byte theMode) throws CryptoException {
+        log.debug("init: algorithm={}, cipherAlgorithm={}, mode={}, keyType={}, keySize={}",
+                algorithm, cipherAlgorithm, theMode,
+                theKey == null ? "null" : theKey.getClass().getSimpleName(),
+                theKey == null ? -1 : theKey.getSize());
         if (theKey == null) {
             CryptoException.throwIt(CryptoException.UNINITIALIZED_KEY);
         }
@@ -402,6 +408,8 @@ public class AsymmetricSignatureImpl extends Signature implements SignatureMessa
                             short hashLength,
                             byte[] sigBuff,
                             short sigOffset) throws CryptoException {
+        log.debug("signPreComputedHash: hashLength={}, digest={}", hashLength,
+                digest == null ? "null" : digest.getClass().getSimpleName());
         if (digest instanceof BouncyCastlePrecomputedOrDigestProxy) {
             ((BouncyCastlePrecomputedOrDigestProxy) digest).setPrecomputedValue(hashBuff, hashOffset, hashLength);
             return sign(null, (short) 0, (short) 0, sigBuff, sigOffset);
@@ -411,6 +419,8 @@ public class AsymmetricSignatureImpl extends Signature implements SignatureMessa
     }
 
     public boolean verifyPreComputedHash(byte[] hashBuff, short hashOffset, short hashLength, byte[] sigBuff, short sigOffset, short sigLength) throws CryptoException {
+        log.debug("verifyPreComputedHash: hashLength={}, sigLength={}, digest={}", hashLength, sigLength,
+                digest == null ? "null" : digest.getClass().getSimpleName());
         if (digest instanceof BouncyCastlePrecomputedOrDigestProxy) {
             ((BouncyCastlePrecomputedOrDigestProxy) digest).setPrecomputedValue(hashBuff, hashOffset, hashLength);
             return verify(null, (short) 0, (short) 0, sigBuff, sigOffset, sigLength);
