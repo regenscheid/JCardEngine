@@ -54,6 +54,13 @@ public class SignatureProxy {
 //        if (externalAccess) {
 //            CryptoException.throwIt(CryptoException.NO_SUCH_ALGORITHM);
 //        }
+
+        // SIG_CIPHER_ECDSA may share a numeric value with an existing ALG_* constant,
+        // so handle it before the switch to avoid a duplicate case label.
+        if (algorithm == Signature.SIG_CIPHER_ECDSA) {
+            return getInstance(MessageDigest.ALG_NULL, Signature.SIG_CIPHER_ECDSA, Cipher.PAD_NULL, externalAccess);
+        }
+
         switch (algorithm) {
             case Signature.ALG_RSA_SHA_ISO9796:
             case Signature.ALG_RSA_SHA_PKCS1:
@@ -88,8 +95,6 @@ public class SignatureProxy {
                     CryptoException.throwIt(CryptoException.INVALID_INIT);
                 }
                 break;
-            case Signature.SIG_CIPHER_ECDSA:
-                return getInstance(MessageDigest.ALG_NULL, Signature.SIG_CIPHER_ECDSA, Cipher.PAD_NULL, externalAccess);
             case Signature.ALG_DES_MAC4_NOPAD:
             case Signature.ALG_DES_MAC8_NOPAD:
             case Signature.ALG_DES_MAC4_ISO9797_M1:

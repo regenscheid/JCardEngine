@@ -30,6 +30,8 @@ import org.bouncycastle.crypto.signers.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.reflect.Field;
+
 /*
  * Implementation <code>Signature</code> with asymmetric keys based
  * on BouncyCastle CryptoAPI.
