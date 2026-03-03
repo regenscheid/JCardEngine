@@ -65,7 +65,9 @@ public class AsymmetricSignatureImpl extends Signature implements SignatureMessa
         this.paddingAlgorithm = paddingAlgorithm;
         isRecovery = false;
         if (isRawECDSAWithoutHash()) {
-            engine = new DSADigestSigner(new ECDSASigner(), new BouncyCastlePrecomputedOrDigestProxy(new NullDigest()));
+            BouncyCastlePrecomputedOrDigestProxy proxy = new BouncyCastlePrecomputedOrDigestProxy(new NullDigest());
+            digest = proxy;
+            engine = new DSADigestSigner(new ECDSASigner(), proxy);
             return;
         }
         switch (algorithm) {
@@ -402,9 +404,13 @@ public class AsymmetricSignatureImpl extends Signature implements SignatureMessa
                             short hashLength,
                             byte[] sigBuff,
                             short sigOffset) throws CryptoException {
+        if (digest instanceof BouncyCastlePrecomputedOrDigestProxy) {
+            ((BouncyCastlePrecomputedOrDigestProxy) digest).setPrecomputedValue(hashBuff, hashOffset, hashLength);
+            return sign(null, (short) 0, (short) 0, sigBuff, sigOffset);
+        }
         try {
             if((engine instanceof RSADigestSigner) || (engine instanceof DSADigestSigner) || (engine instanceof PSSSigner)) {
-                // set precomputed hava value - BouncyCastle specific
+                // set precomputed hash value - BouncyCastle specific
                  Field h = engine.getClass().getDeclaredField(engine instanceof PSSSigner ? "contentDigest1" : "digest");
                  h.setAccessible(true);
                  Object digestObject = h.get(engine);
@@ -421,9 +427,13 @@ public class AsymmetricSignatureImpl extends Signature implements SignatureMessa
     }
 
     public boolean verifyPreComputedHash(byte[] hashBuff, short hashOffset, short hashLength, byte[] sigBuff, short sigOffset, short sigLength) throws CryptoException {
+        if (digest instanceof BouncyCastlePrecomputedOrDigestProxy) {
+            ((BouncyCastlePrecomputedOrDigestProxy) digest).setPrecomputedValue(hashBuff, hashOffset, hashLength);
+            return verify(null, (short) 0, (short) 0, sigBuff, sigOffset, sigLength);
+        }
         try {
             if ((engine instanceof RSADigestSigner) || (engine instanceof DSADigestSigner) || (engine instanceof PSSSigner)) {
-                // set precomputed hava value - BouncyCastle specific
+                // set precomputed hash value - BouncyCastle specific
                 Field h = engine.getClass().getDeclaredField(engine instanceof PSSSigner ? "contentDigest1" : "digest");
                 h.setAccessible(true);
                 Object digestObject = h.get(engine);

@@ -33,6 +33,9 @@ public class BouncyCastlePrecomputedOrDigestProxy implements Digest {
 
     @Override
     public int getDigestSize() {
+        if (precomputedDigestValue != null) {
+            return precomputedDigestValue.length;
+        }
         return parentDigest.getDigestSize();
     }
 
@@ -62,12 +65,13 @@ public class BouncyCastlePrecomputedOrDigestProxy implements Digest {
     }
 
     public void setPrecomputedValue(byte[] in, int inOff, int inLength) {
-        int digestSize = getDigestSize();
-        if (inLength!= digestSize) {
+        int digestSize = parentDigest.getDigestSize();
+        // digestSize == 0 indicates NullDigest/passthrough: accept any hash length
+        if (digestSize != 0 && inLength != digestSize) {
             throw new IllegalArgumentException();
         }
-        precomputedDigestValue = new byte[digestSize];
-        System.arraycopy(in, inOff, precomputedDigestValue, 0, digestSize);
+        precomputedDigestValue = new byte[inLength];
+        System.arraycopy(in, inOff, precomputedDigestValue, 0, inLength);
     }
 
     @Override

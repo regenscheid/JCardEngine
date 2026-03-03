@@ -108,6 +108,10 @@ public class SignatureProxy {
                 instance = new SymmetricSignatureImpl(algorithm);
                 break;
 
+            case Signature.SIG_CIPHER_ECDSA:
+                // Delegate to the 4-argument form for raw ECDSA (pre-computed hash)
+                return getInstance(MessageDigest.ALG_NULL, Signature.SIG_CIPHER_ECDSA, Cipher.PAD_NULL, externalAccess);
+
             default:
                 CryptoException.throwIt(CryptoException.NO_SUCH_ALGORITHM);
                 break;
@@ -128,6 +132,8 @@ public class SignatureProxy {
                 return new SymmetricSignatureImpl(Signature.ALG_AES_CMAC_128); // FIXME: need padding
             case Signature.SIG_CIPHER_ECDSA:
                 switch (messageDigestAlgorithm) {
+                    case MessageDigest.ALG_NULL:
+                        return new AsymmetricSignatureImpl(MessageDigest.ALG_NULL, Signature.SIG_CIPHER_ECDSA, Cipher.PAD_NULL);
                     case MessageDigest.ALG_SHA_256:
                         return new AsymmetricSignatureImpl(Signature.ALG_ECDSA_SHA_256);
                     case MessageDigest.ALG_SHA_384:
