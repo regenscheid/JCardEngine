@@ -48,6 +48,7 @@ public class JCardTool {
     // Generic options
     static OptionSpec<Void> OPT_HELP = parser.acceptsAll(Arrays.asList("h", "help"), "Show this help").forHelp();
     static OptionSpec<Void> OPT_VERSION = parser.acceptsAll(Arrays.asList("V", "version"), "Show version");
+    static OptionSpec<Void> OPT_VERBOSE = parser.acceptsAll(Arrays.asList("v", "verbose"), "Enable verbose/debug logging");
     static OptionSpec<Void> OPT_CONTROL = parser.acceptsAll(Arrays.asList("c", "control"), "Start control interface");
 
     // VSmartCard options
@@ -78,10 +79,6 @@ public class JCardTool {
     static OptionSpec<String> OPT_PARAMS = parser.accepts("params", "Installation parameters").withRequiredArg().ofType(String.class);
     static OptionSpec<String> OPT_AID = parser.accepts("aid", "Applet AID").withRequiredArg().ofType(String.class);
 
-    // Class loader for .jar/.cap/classes
-    static final AppletClassLoader loader = new AppletClassLoader();
-
-
     static AbstractTCPAdapter configureVSmartCard(AbstractTCPAdapter adapter, OptionSet options) {
         adapter = adapter.withHost(options.valueOf(OPT_VSMARTCARD_HOST));
         adapter = adapter.withPort(options.valueOf(OPT_VSMARTCARD_PORT));
@@ -110,6 +107,10 @@ public class JCardTool {
                 return;
             }
 
+            if (options.has(OPT_VERBOSE)) {
+                System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", "debug");
+            }
+
             if (options.nonOptionArguments().isEmpty() && !options.has(OPT_PASSTHROUGH_HOST)) {
                 System.err.println("Missing applets. Check --help");
                 System.exit(2);
@@ -127,6 +128,9 @@ public class JCardTool {
             } else {
                 Set<String> availableApplets = new TreeSet<>();
                 Map<String, byte[]> defaultAID = new HashMap<>();
+
+                // Class loader for .jar/.cap/classes
+                AppletClassLoader loader = new AppletClassLoader();
 
                 // Set up simulator. Right now a sample thingy
                 JavaCardEngine sim = new JavaCardEngine.Builder().withClassLoader(loader).build();
