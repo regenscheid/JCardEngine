@@ -88,6 +88,8 @@ public class SignatureProxy {
                     CryptoException.throwIt(CryptoException.INVALID_INIT);
                 }
                 break;
+            case Signature.SIG_CIPHER_ECDSA:
+                return getInstance(MessageDigest.ALG_NULL, Signature.SIG_CIPHER_ECDSA, Cipher.PAD_NULL, externalAccess);
             case Signature.ALG_DES_MAC4_NOPAD:
             case Signature.ALG_DES_MAC8_NOPAD:
             case Signature.ALG_DES_MAC4_ISO9797_M1:
@@ -128,6 +130,8 @@ public class SignatureProxy {
                 return new SymmetricSignatureImpl(Signature.ALG_AES_CMAC_128); // FIXME: need padding
             case Signature.SIG_CIPHER_ECDSA:
                 switch (messageDigestAlgorithm) {
+                    case MessageDigest.ALG_NULL:
+                        return new AsymmetricSignatureImpl(MessageDigest.ALG_NULL, Signature.SIG_CIPHER_ECDSA, Cipher.PAD_NULL);
                     case MessageDigest.ALG_SHA_256:
                         return new AsymmetricSignatureImpl(Signature.ALG_ECDSA_SHA_256);
                     case MessageDigest.ALG_SHA_384:

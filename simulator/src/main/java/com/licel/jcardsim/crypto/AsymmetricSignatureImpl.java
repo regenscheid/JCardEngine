@@ -30,8 +30,6 @@ import org.bouncycastle.crypto.signers.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.reflect.Field;
-
 /*
  * Implementation <code>Signature</code> with asymmetric keys based
  * on BouncyCastle CryptoAPI.
@@ -81,88 +79,88 @@ public class AsymmetricSignatureImpl extends Signature implements SignatureMessa
                 isRecovery = true;
                 break;
             case ALG_RSA_SHA_PKCS1:
-                digest = new SHA1Digest();
-                engine = new RSADigestSigner(new BouncyCastlePrecomputedOrDigestProxy(digest));
+                digest = new BouncyCastlePrecomputedOrDigestProxy(new SHA1Digest());
+                engine = new RSADigestSigner((BouncyCastlePrecomputedOrDigestProxy) digest);
                 break;
             case ALG_RSA_SHA_224_PKCS1:
-                digest = new SHA224Digest();
-                engine = new RSADigestSigner(new BouncyCastlePrecomputedOrDigestProxy(digest));
+                digest = new BouncyCastlePrecomputedOrDigestProxy(new SHA224Digest());
+                engine = new RSADigestSigner((BouncyCastlePrecomputedOrDigestProxy) digest);
                 break;
             case ALG_RSA_SHA_256_PKCS1:
-                digest = new SHA256Digest();
-                engine = new RSADigestSigner(new BouncyCastlePrecomputedOrDigestProxy(digest));
+                digest = new BouncyCastlePrecomputedOrDigestProxy(new SHA256Digest());
+                engine = new RSADigestSigner((BouncyCastlePrecomputedOrDigestProxy) digest);
                 break;
             case ALG_RSA_SHA_384_PKCS1:
-                digest = new SHA384Digest();
-                engine = new RSADigestSigner(new BouncyCastlePrecomputedOrDigestProxy(digest));
+                digest = new BouncyCastlePrecomputedOrDigestProxy(new SHA384Digest());
+                engine = new RSADigestSigner((BouncyCastlePrecomputedOrDigestProxy) digest);
                 break;
             case ALG_RSA_SHA_512_PKCS1:
-                digest = new SHA512Digest();
-                engine = new RSADigestSigner(new BouncyCastlePrecomputedOrDigestProxy(digest));
+                digest = new BouncyCastlePrecomputedOrDigestProxy(new SHA512Digest());
+                engine = new RSADigestSigner((BouncyCastlePrecomputedOrDigestProxy) digest);
                 break;
             case ALG_RSA_SHA_PKCS1_PSS:
-                digest = new SHA1Digest();
-                engine = new PSSSigner(new RSAEngine(), new BouncyCastlePrecomputedOrDigestProxy(digest), 16);
+                digest = new BouncyCastlePrecomputedOrDigestProxy(new SHA1Digest());
+                engine = new PSSSigner(new RSAEngine(), (BouncyCastlePrecomputedOrDigestProxy) digest, 16);
                 break;
             case ALG_RSA_SHA_224_PKCS1_PSS:
-                digest = new SHA224Digest();
-                engine = new PSSSigner(new RSAEngine(), new BouncyCastlePrecomputedOrDigestProxy(digest), 28);
+                digest = new BouncyCastlePrecomputedOrDigestProxy(new SHA224Digest());
+                engine = new PSSSigner(new RSAEngine(), (BouncyCastlePrecomputedOrDigestProxy) digest, 28);
                 break;
             case ALG_RSA_SHA_256_PKCS1_PSS:
-                digest = new SHA256Digest();
-                engine = new PSSSigner(new RSAEngine(), new BouncyCastlePrecomputedOrDigestProxy(digest), 32);
+                digest = new BouncyCastlePrecomputedOrDigestProxy(new SHA256Digest());
+                engine = new PSSSigner(new RSAEngine(), (BouncyCastlePrecomputedOrDigestProxy) digest, 32);
                 break;
             case ALG_RSA_SHA_384_PKCS1_PSS:
-                digest = new SHA384Digest();
-                engine = new PSSSigner(new RSAEngine(), new BouncyCastlePrecomputedOrDigestProxy(digest), 48);
+                digest = new BouncyCastlePrecomputedOrDigestProxy(new SHA384Digest());
+                engine = new PSSSigner(new RSAEngine(), (BouncyCastlePrecomputedOrDigestProxy) digest, 48);
                 break;
             case ALG_RSA_SHA_512_PKCS1_PSS:
-                digest = new SHA512Digest();
-                engine = new PSSSigner(new RSAEngine(), new BouncyCastlePrecomputedOrDigestProxy(digest), 64);
+                digest = new BouncyCastlePrecomputedOrDigestProxy(new SHA512Digest());
+                engine = new PSSSigner(new RSAEngine(), (BouncyCastlePrecomputedOrDigestProxy) digest, 64);
                 break;
             case ALG_RSA_MD5_PKCS1:
-                digest = new MD5Digest();
-                engine = new RSADigestSigner(new BouncyCastlePrecomputedOrDigestProxy(digest));
+                digest = new BouncyCastlePrecomputedOrDigestProxy(new MD5Digest());
+                engine = new RSADigestSigner((BouncyCastlePrecomputedOrDigestProxy) digest);
                 break;
             case ALG_RSA_RIPEMD160_ISO9796:
                 digest = new RIPEMD160Digest();
                 engine = new ISO9796d2Signer(new RSAEngine(), digest);
                 break;
             case ALG_RSA_RIPEMD160_PKCS1:
-                digest = new RIPEMD160Digest();
-                engine = new RSADigestSigner(new BouncyCastlePrecomputedOrDigestProxy(digest));
+                digest = new BouncyCastlePrecomputedOrDigestProxy(new RIPEMD160Digest());
+                engine = new RSADigestSigner((BouncyCastlePrecomputedOrDigestProxy) digest);
                 break;
             case ALG_ECDSA_SHA:
-                digest = new SHA1Digest();
-                engine = new DSADigestSigner(new ECDSASigner(), new BouncyCastlePrecomputedOrDigestProxy(digest));
+                digest = new BouncyCastlePrecomputedOrDigestProxy(new SHA1Digest());
+                engine = new DSADigestSigner(new ECDSASigner(), (BouncyCastlePrecomputedOrDigestProxy) digest);
                 break;
             case ALG_ECDSA_SHA_224:
-                digest = new SHA224Digest();
-                engine = new DSADigestSigner(new ECDSASigner(), new BouncyCastlePrecomputedOrDigestProxy(digest));
+                digest = new BouncyCastlePrecomputedOrDigestProxy(new SHA224Digest());
+                engine = new DSADigestSigner(new ECDSASigner(), (BouncyCastlePrecomputedOrDigestProxy) digest);
                 break;
             case ALG_ECDSA_SHA_256:
-                digest = new SHA256Digest();
-                engine = new DSADigestSigner(new ECDSASigner(), new BouncyCastlePrecomputedOrDigestProxy(digest));
+                digest = new BouncyCastlePrecomputedOrDigestProxy(new SHA256Digest());
+                engine = new DSADigestSigner(new ECDSASigner(), (BouncyCastlePrecomputedOrDigestProxy) digest);
                 break;
             case ALG_ECDSA_SHA_384:
-                digest = new SHA384Digest();
-                engine = new DSADigestSigner(new ECDSASigner(), new BouncyCastlePrecomputedOrDigestProxy(digest));
+                digest = new BouncyCastlePrecomputedOrDigestProxy(new SHA384Digest());
+                engine = new DSADigestSigner(new ECDSASigner(), (BouncyCastlePrecomputedOrDigestProxy) digest);
                 break;
             case ALG_ECDSA_SHA_512:
-                digest = new SHA512Digest();
-                engine = new DSADigestSigner(new ECDSASigner(), new BouncyCastlePrecomputedOrDigestProxy(digest));
+                digest = new BouncyCastlePrecomputedOrDigestProxy(new SHA512Digest());
+                engine = new DSADigestSigner(new ECDSASigner(), (BouncyCastlePrecomputedOrDigestProxy) digest);
                 break;
             case ALG_DSA_SHA:
-                digest = new SHA1Digest();
-                engine = new DSADigestSigner(new DSASigner(), new BouncyCastlePrecomputedOrDigestProxy(digest));
+                digest = new BouncyCastlePrecomputedOrDigestProxy(new SHA1Digest());
+                engine = new DSADigestSigner(new DSASigner(), (BouncyCastlePrecomputedOrDigestProxy) digest);
                 break;
             case ALG_RSA_MD5_PKCS1_PSS:
-                digest = new MD5Digest();
-                engine = new PSSSigner(new RSAEngine(), new BouncyCastlePrecomputedOrDigestProxy(digest), 16);
+                digest = new BouncyCastlePrecomputedOrDigestProxy(new MD5Digest());
+                engine = new PSSSigner(new RSAEngine(), (BouncyCastlePrecomputedOrDigestProxy) digest, 16);
                 break;
             case ALG_RSA_RIPEMD160_PKCS1_PSS:
-                digest = new RIPEMD160Digest();
-                engine = new PSSSigner(new RSAEngine(), new BouncyCastlePrecomputedOrDigestProxy(digest), 20);
+                digest = new BouncyCastlePrecomputedOrDigestProxy(new RIPEMD160Digest());
+                engine = new PSSSigner(new RSAEngine(), (BouncyCastlePrecomputedOrDigestProxy) digest, 20);
                 break;
             case ALG_RSA_SHA_RFC2409:
             case ALG_RSA_MD5_RFC2409:
@@ -402,39 +400,19 @@ public class AsymmetricSignatureImpl extends Signature implements SignatureMessa
                             short hashLength,
                             byte[] sigBuff,
                             short sigOffset) throws CryptoException {
-        try {
-            if((engine instanceof RSADigestSigner) || (engine instanceof DSADigestSigner) || (engine instanceof PSSSigner)) {
-                // set precomputed hava value - BouncyCastle specific
-                 Field h = engine.getClass().getDeclaredField(engine instanceof PSSSigner ? "contentDigest1" : "digest");
-                 h.setAccessible(true);
-                 Object digestObject = h.get(engine);
-                 digestObject.getClass().getMethod("setPrecomputedValue", new Class[]{byte[].class, int.class, int.class})
-                         .invoke(digestObject, new Object[]{hashBuff,hashOffset,hashLength});
-                 return sign(null, (short) 0, (short) 0, sigBuff, sigOffset);
-            }
-        } catch(ReflectiveOperationException e) {
-            e.printStackTrace();
+        if (digest instanceof BouncyCastlePrecomputedOrDigestProxy) {
+            ((BouncyCastlePrecomputedOrDigestProxy) digest).setPrecomputedValue(hashBuff, hashOffset, hashLength);
+            return sign(null, (short) 0, (short) 0, sigBuff, sigOffset);
         }
-        
         CryptoException.throwIt(CryptoException.ILLEGAL_USE);
         return 0;
     }
 
     public boolean verifyPreComputedHash(byte[] hashBuff, short hashOffset, short hashLength, byte[] sigBuff, short sigOffset, short sigLength) throws CryptoException {
-        try {
-            if ((engine instanceof RSADigestSigner) || (engine instanceof DSADigestSigner) || (engine instanceof PSSSigner)) {
-                // set precomputed hava value - BouncyCastle specific
-                Field h = engine.getClass().getDeclaredField(engine instanceof PSSSigner ? "contentDigest1" : "digest");
-                h.setAccessible(true);
-                Object digestObject = h.get(engine);
-                digestObject.getClass().getMethod("setPrecomputedValue", new Class[]{byte[].class, int.class, int.class})
-                        .invoke(digestObject, new Object[]{hashBuff, hashOffset, hashLength});
-                return verify(null, (short) 0, (short) 0, sigBuff, sigOffset, sigLength);
-            }
-        } catch (ReflectiveOperationException e) {
-            e.printStackTrace();
+        if (digest instanceof BouncyCastlePrecomputedOrDigestProxy) {
+            ((BouncyCastlePrecomputedOrDigestProxy) digest).setPrecomputedValue(hashBuff, hashOffset, hashLength);
+            return verify(null, (short) 0, (short) 0, sigBuff, sigOffset, sigLength);
         }
-
         CryptoException.throwIt(CryptoException.ILLEGAL_USE);
         return false;
     }
