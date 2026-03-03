@@ -65,7 +65,9 @@ public class AsymmetricSignatureImpl extends Signature implements SignatureMessa
         this.paddingAlgorithm = paddingAlgorithm;
         isRecovery = false;
         if (isRawECDSAWithoutHash()) {
-            engine = new DSADigestSigner(new ECDSASigner(), new BouncyCastlePrecomputedOrDigestProxy(new NullDigest()));
+            BouncyCastlePrecomputedOrDigestProxy proxy = new BouncyCastlePrecomputedOrDigestProxy(new NullDigest());
+            digest = proxy;
+            engine = new DSADigestSigner(new ECDSASigner(), proxy);
             return;
         }
         switch (algorithm) {
@@ -460,4 +462,3 @@ public class AsymmetricSignatureImpl extends Signature implements SignatureMessa
     public byte getMessageDigestAlgorithm() {
        throw new UnsupportedOperationException("Not supported yet.");
     }   
-}
