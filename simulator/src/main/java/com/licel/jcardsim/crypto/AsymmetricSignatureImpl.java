@@ -268,7 +268,9 @@ public class AsymmetricSignatureImpl extends Signature implements SignatureMessa
         if (!isInitialized) {
             CryptoException.throwIt(CryptoException.INVALID_INIT);
         }
-        engine.update(inBuff, inOffset, inLength);
+        if (inBuff != null) {
+            engine.update(inBuff, inOffset, inLength);
+        }
     }
 
     public short sign(byte[] inBuff, short inOffset, short inLength, byte[] sigBuff, short sigOffset) throws CryptoException {
@@ -278,7 +280,9 @@ public class AsymmetricSignatureImpl extends Signature implements SignatureMessa
         if (!isInitialized) {
             CryptoException.throwIt(CryptoException.INVALID_INIT);
         }
-        engine.update(inBuff, inOffset, inLength);
+        if (inBuff != null) {
+            engine.update(inBuff, inOffset, inLength);
+        }
         byte[] sig;
         try {
             sig = engine.generateSignature();
@@ -301,7 +305,9 @@ public class AsymmetricSignatureImpl extends Signature implements SignatureMessa
         if (!isInitialized) {
             CryptoException.throwIt(CryptoException.INVALID_INIT);
         }
-        engine.update(inBuff, inOffset, inLength);
+        if (inBuff != null) {
+            engine.update(inBuff, inOffset, inLength);
+        }
         byte[] sig = new byte[sigLength];
         Util.arrayCopyNonAtomic(sigBuff, sigOffset, sig, (short) 0, sigLength);
         boolean b = engine.verifySignature(sig);
