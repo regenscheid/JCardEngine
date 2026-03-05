@@ -18,6 +18,7 @@ package com.licel.jcardsim.crypto;
 import com.licel.jcardsim.SimulatorCoreTest;
 import javacard.framework.JCSystem;
 import javacard.security.*;
+import javacardx.crypto.Cipher;
 import org.bouncycastle.asn1.teletrust.TeleTrusTNamedCurves;
 import org.bouncycastle.asn1.x9.X9ECParameters;
 import org.bouncycastle.crypto.params.ECDomainParameters;
@@ -188,6 +189,47 @@ public class AsymmetricSignatureImplTest extends SimulatorCoreTest {
         // ecfp keys
         testSelfSignVerify(KeyPair.ALG_EC_FP, KeyBuilder.LENGTH_EC_FP_112, Signature.ALG_ECDSA_SHA_512, null);
     }
+
+        @Test
+        public void testSelfPrecompSignVerifyECDSASHA256_ECFP256() {
+        System.out.println("self test precomputed sign/verify ecdsa SHA-256 ecfp256");
+        testSelfPrecompSignVerify(KeyPair.ALG_EC_FP, KeyBuilder.LENGTH_EC_FP_256,
+            Signature.ALG_ECDSA_SHA_256, MessageDigest.ALG_SHA_256);
+        }
+
+        @Test
+        @SuppressWarnings("deprecation") // random
+        public void testSelfPrecompSignVerifyRawECDSA_ECFP256() {
+        System.out.println("self test precomputed sign/verify raw ecdsa ecfp256");
+
+        KeyPair keyPair = new KeyPair(KeyPair.ALG_EC_FP, KeyBuilder.LENGTH_EC_FP_256);
+        keyPair.genKeyPair();
+
+        Signature signEngine = Signature.getInstance(MessageDigest.ALG_NULL, Signature.SIG_CIPHER_ECDSA,
+            Cipher.PAD_NULL, false);
+        signEngine.init(keyPair.getPrivate(), Signature.MODE_SIGN);
+
+        Signature verifyEngine = Signature.getInstance(MessageDigest.ALG_NULL, Signature.SIG_CIPHER_ECDSA,
+            Cipher.PAD_NULL, false);
+        verifyEngine.init(keyPair.getPublic(), Signature.MODE_VERIFY);
+
+        byte[] msg = new byte[65];
+        RandomData rnd = RandomData.getInstance(RandomData.ALG_PSEUDO_RANDOM);
+        rnd.generateData(msg, (short) 0, (short) msg.length);
+
+        MessageDigestImpl digestEngine = new MessageDigestImpl(MessageDigest.ALG_SHA_256);
+        byte[] msgDigest = new byte[digestEngine.getLength()];
+        digestEngine.doFinal(msg, (short) 0, (short) msg.length, msgDigest, (short) 0);
+
+        byte[] signature = new byte[140 + 10];
+        short signLen = signEngine.signPreComputedHash(msgDigest, (short) 0, (short) msgDigest.length,
+            signature, (short) 10);
+        assertTrue(signLen <= signEngine.getLength());
+
+        boolean verify = verifyEngine.verifyPreComputedHash(msgDigest, (short) 0, (short) msgDigest.length,
+            signature, (short) 10, signLen);
+        assertTrue(verify);
+        }
 
     @Test
     public void testSelfSignVerifyECDSA_Brainpool_SHA2() {
