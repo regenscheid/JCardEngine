@@ -54,6 +54,14 @@ public class SignatureProxy {
 //        if (externalAccess) {
 //            CryptoException.throwIt(CryptoException.NO_SUCH_ALGORITHM);
 //        }
+
+        // SIG_CIPHER_ECDSA may share a numeric value with an existing ALG_* constant,
+        // so handle it before the switch to avoid a duplicate case label.
+        if (algorithm == Signature.SIG_CIPHER_ECDSA) {
+            log.debug("getInstance: routing SIG_CIPHER_ECDSA ({}) to 4-arg getInstance", algorithm);
+            return getInstance(MessageDigest.ALG_NULL, Signature.SIG_CIPHER_ECDSA, Cipher.PAD_NULL, externalAccess);
+        }
+
         switch (algorithm) {
             case Signature.ALG_RSA_SHA_ISO9796:
             case Signature.ALG_RSA_SHA_PKCS1:
@@ -128,6 +136,8 @@ public class SignatureProxy {
                 return new SymmetricSignatureImpl(Signature.ALG_AES_CMAC_128); // FIXME: need padding
             case Signature.SIG_CIPHER_ECDSA:
                 switch (messageDigestAlgorithm) {
+                    case MessageDigest.ALG_NULL:
+                        return new AsymmetricSignatureImpl(MessageDigest.ALG_NULL, Signature.SIG_CIPHER_ECDSA, Cipher.PAD_NULL);
                     case MessageDigest.ALG_SHA_256:
                         return new AsymmetricSignatureImpl(Signature.ALG_ECDSA_SHA_256);
                     case MessageDigest.ALG_SHA_384:
