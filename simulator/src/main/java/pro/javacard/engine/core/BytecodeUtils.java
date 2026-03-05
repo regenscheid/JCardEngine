@@ -5,7 +5,7 @@ import org.objectweb.asm.ClassWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public final class BytecodeUtils {
+public class BytecodeUtils {
     private static final Logger log = LoggerFactory.getLogger(BytecodeUtils.class);
 
     public static byte[] transform(byte[] classBytes, ClassLoader classLoader) {
@@ -21,7 +21,6 @@ public final class BytecodeUtils {
         return classWriter.toByteArray();
     }
 
-    // Custom ClassWriter that uses the correct ClassLoader
     static class CustomClassWriter extends ClassWriter {
         private final ClassLoader classLoader;
 
@@ -33,6 +32,41 @@ public final class BytecodeUtils {
         @Override
         protected ClassLoader getClassLoader() {
             return classLoader;
+        }
+
+        @Override
+        protected String getCommonSuperClass(String type1, String type2) {
+            try {
+                String s1 = type1;
+                while (s1 != null) {
+                    String s2 = type2;
+                    while (s2 != null) {
+                        if (s1.equals(s2)) {
+                            return s1;
+                        }
+                        s2 = getSuperClassName(s2);
+                    }
+                    s1 = getSuperClassName(s1);
+                }
+            } catch (Exception e) {
+                log.warn("Could not resolve common superclass for {} and {}: {}", type1, type2, e.getMessage());
+            }
+            return "java/lang/Object";
+        }
+
+        private String getSuperClassName(String internalName) throws Exception {
+            if ("java/lang/Object".equals(internalName)) {
+                return null;
+            }
+            var is = classLoader.getResourceAsStream(internalName + ".class");
+            if (is == null) {
+                return null;
+            }
+            try {
+                return new ClassReader(is.readAllBytes()).getSuperName();
+            } finally {
+                is.close();
+            }
         }
     }
 }
