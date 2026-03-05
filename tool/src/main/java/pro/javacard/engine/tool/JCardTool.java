@@ -16,6 +16,7 @@
 package pro.javacard.engine.tool;
 
 import com.licel.jcardsim.base.InstallSpec;
+import com.licel.jcardsim.base.Simulator;
 import javacard.framework.Applet;
 import javacard.framework.SystemException;
 import joptsimple.OptionException;
@@ -50,6 +51,7 @@ public class JCardTool {
     static OptionSpec<Void> OPT_VERSION = parser.acceptsAll(Arrays.asList("V", "version"), "Show version");
     static OptionSpec<Void> OPT_VERBOSE = parser.acceptsAll(Arrays.asList("v", "verbose"), "Enable verbose/debug logging");
     static OptionSpec<Void> OPT_CONTROL = parser.acceptsAll(Arrays.asList("c", "control"), "Start control interface");
+    static OptionSpec<Void> OPT_APDU_TRACE = parser.accepts("apdu-trace", "Enable full C-APDU/R-APDU trace logging");
 
     // VSmartCard options
     static OptionSpec<Void> OPT_VSMARTCARD = parser.accepts("vsmartcard", "Run a VSmartCard client");
@@ -109,6 +111,10 @@ public class JCardTool {
 
             if (options.has(OPT_VERBOSE)) {
                 System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", "debug");
+            }
+
+            if (options.has(OPT_APDU_TRACE)) {
+                System.setProperty(Simulator.APDU_TRACE_PROPERTY, "true");
             }
 
             if (options.nonOptionArguments().isEmpty() && !options.has(OPT_PASSTHROUGH_HOST)) {

@@ -52,6 +52,7 @@ public class Simulator implements CardInterface, JavaCardEngine, JavaCardRuntime
     }
 
     private static final Logger log = LoggerFactory.getLogger(Simulator.class);
+    public static final String APDU_TRACE_PROPERTY = "jcardengine.apdu.trace";
 
     // default ATR - dummy minimal
     public static final String DEFAULT_ATR = "3B80800101";
@@ -436,6 +437,9 @@ public class Simulator implements CardInterface, JavaCardEngine, JavaCardRuntime
         command_counter++;
 
         log.info("Processing command #{}", command_counter);
+        if (isFullApduTraceEnabled()) {
+            log.info("#{} [{}] >> {}", command_counter, protocolToString(protocol), Hex.toHexString(command));
+        }
         // Reset faults
         correct();
 
@@ -462,7 +466,7 @@ public class Simulator implements CardInterface, JavaCardEngine, JavaCardRuntime
             if ((command[ISO7816.OFFSET_CLA] & 0x80) == 0x00 && command[ISO7816.OFFSET_INS] == 0x70) {
                 log.warn("MANAGE CHANNEL not supported");
                 Util.setShort(theSW, (short) 0, (short) 0x6881);
-                return theSW;
+                return traceResponse(theSW);
             }
 
             selecting = false;
@@ -479,7 +483,7 @@ public class Simulator implements CardInterface, JavaCardEngine, JavaCardRuntime
                     // No applet found
                     if (newAid == null) {
                         Util.setShort(theSW, (short) 0, ISO7816.SW_FILE_NOT_FOUND);
-                        return theSW;
+                        return traceResponse(theSW);
                     } else {
                         selecting = true;
                         applet = lookupApplet(newAid).getApplet();
@@ -501,7 +505,7 @@ public class Simulator implements CardInterface, JavaCardEngine, JavaCardRuntime
                 // Nothing selected and not a SELECT applet - done
                 if (currentAID == null) {
                     Util.setShort(theSW, (short) 0, ISO7816.SW_COMMAND_NOT_ALLOWED);
-                    return theSW;
+                    return traceResponse(theSW);
                 }
                 applet = lookupApplet(currentAID).getApplet();
                 newAid = null;
@@ -510,7 +514,7 @@ public class Simulator implements CardInterface, JavaCardEngine, JavaCardRuntime
             if (APDUHelper.isExtendedAPDU(apduCase)) {
                 if (!(applet instanceof ExtendedLength)) {
                     Util.setShort(theSW, (short) 0, ISO7816.SW_WRONG_LENGTH);
-                    return theSW;
+                    return traceResponse(theSW);
                 }
             }
 
@@ -569,8 +573,32 @@ public class Simulator implements CardInterface, JavaCardEngine, JavaCardRuntime
                 response = theSW;
             }
 
-            return response;
+            return traceResponse(response);
         }
+    }
+
+    private byte[] traceResponse(byte[] response) {
+        if (isFullApduTraceEnabled()) {
+            log.info("#{} [{}] << {}", command_counter, protocolToString(currentAPDU.getProtocol()), Hex.toHexString(response));
+        }
+        return response;
+    }
+
+    private static boolean isFullApduTraceEnabled() {
+        return Boolean.getBoolean(APDU_TRACE_PROPERTY);
+    }
+
+    private static String protocolToString(byte protocol) {
+        if ((protocol & APDU.PROTOCOL_MEDIA_MASK) == APDU.PROTOCOL_MEDIA_CONTACTLESS_TYPE_A) {
+            return "T=CL-A";
+        }
+        if ((protocol & APDU.PROTOCOL_MEDIA_MASK) == APDU.PROTOCOL_MEDIA_CONTACTLESS_TYPE_B) {
+            return "T=CL-B";
+        }
+        if ((protocol & APDU.PROTOCOL_TYPE_MASK) == APDU.PROTOCOL_T1) {
+            return "T=1";
+        }
+        return "T=0";
     }
 
     static void log_exception(Throwable e, String message) {
