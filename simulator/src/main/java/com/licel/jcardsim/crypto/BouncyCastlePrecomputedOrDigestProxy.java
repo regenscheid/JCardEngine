@@ -33,6 +33,9 @@ public class BouncyCastlePrecomputedOrDigestProxy implements Digest {
 
     @Override
     public int getDigestSize() {
+        if (precomputedDigestValue != null) {
+            return precomputedDigestValue.length;
+        }
         return parentDigest.getDigestSize();
     }
 
