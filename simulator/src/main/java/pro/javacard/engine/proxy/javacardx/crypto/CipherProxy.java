@@ -19,8 +19,11 @@ import com.licel.jcardsim.crypto.AsymmetricCipherImpl;
 import com.licel.jcardsim.crypto.AuthenticatedSymmetricCipherImpl;
 import com.licel.jcardsim.crypto.SymmetricCipherImpl;
 import javacard.security.CryptoException;
+import javacard.security.Key;
 import javacardx.crypto.AEADCipher;
 import javacardx.crypto.Cipher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 /**
  * ProxyClass for <code>Cipher</code>
  * @see Cipher
@@ -113,6 +116,15 @@ public class CipherProxy {
                     instance = new SymmetricCipherImpl(Cipher.ALG_AES_BLOCK_128_ECB_NOPAD);
                 }
                 break;
+            case Cipher.CIPHER_RSA:
+                if (paddingAlgorithm == Cipher.PAD_NOPAD) {
+                    instance = new AsymmetricCipherImpl(Cipher.ALG_RSA_NOPAD);
+                } else if (paddingAlgorithm == Cipher.PAD_PKCS1) {
+                    instance = new AsymmetricCipherImpl(Cipher.ALG_RSA_PKCS1);
+                } else if (paddingAlgorithm == Cipher.PAD_PKCS1_OAEP) {
+                    instance = new AsymmetricCipherImpl(Cipher.ALG_RSA_PKCS1_OAEP);
+                }
+                break;
             default:
                 CryptoException.throwIt(CryptoException.NO_SUCH_ALGORITHM);
                 break;
@@ -121,5 +133,59 @@ public class CipherProxy {
             CryptoException.throwIt(CryptoException.NO_SUCH_ALGORITHM);
         }
         return instance;
+    }
+
+    public static final class OneShot extends Cipher {
+        private static final Logger log = LoggerFactory.getLogger(OneShot.class);
+        private Cipher cipher;
+
+        private OneShot() {
+            log.debug("Cipher.OneShot");
+        }
+
+        public static CipherProxy.OneShot open(byte cipherAlgorithm, byte paddingAlgorithm) throws CryptoException {
+            CipherProxy.OneShot one = new CipherProxy.OneShot();
+            one.cipher = Cipher.getInstance(cipherAlgorithm, paddingAlgorithm, false);
+            return one;
+        }
+
+        public void close() {
+            cipher = null;
+        }
+
+        @Override
+        public void init(Key key, byte mode) throws CryptoException {
+            cipher.init(key, mode);
+        }
+
+        @Override
+        public void init(Key key, byte mode, byte[] bArray, short bOff, short bLen) throws CryptoException {
+            cipher.init(key, mode, bArray, bOff, bLen);
+        }
+
+        @Override
+        public byte getAlgorithm() {
+            return cipher.getAlgorithm();
+        }
+
+        @Override
+        public byte getCipherAlgorithm() {
+            return cipher.getCipherAlgorithm();
+        }
+
+        @Override
+        public byte getPaddingAlgorithm() {
+            return cipher.getPaddingAlgorithm();
+        }
+
+        @Override
+        public short doFinal(byte[] inBuff, short inOffset, short inLength, byte[] outBuff, short outOffset) throws CryptoException {
+            return cipher.doFinal(inBuff, inOffset, inLength, outBuff, outOffset);
+        }
+
+        @Override
+        public short update(byte[] inBuff, short inOffset, short inLength, byte[] outBuff, short outOffset) throws CryptoException {
+            return cipher.update(inBuff, inOffset, inLength, outBuff, outOffset);
+        }
     }
 }

@@ -55,11 +55,15 @@ public class SignatureProxy {
 //            CryptoException.throwIt(CryptoException.NO_SUCH_ALGORITHM);
 //        }
 
-        // SIG_CIPHER_ECDSA may share a numeric value with an existing ALG_* constant,
-        // so handle it before the switch to avoid a duplicate case label.
+        // SIG_CIPHER_* constants may share numeric values with existing ALG_* constants,
+        // so handle them before the switch to avoid a duplicate case label.
         if (algorithm == Signature.SIG_CIPHER_ECDSA) {
             log.debug("getInstance: routing SIG_CIPHER_ECDSA ({}) to 4-arg getInstance", algorithm);
             return getInstance(MessageDigest.ALG_NULL, Signature.SIG_CIPHER_ECDSA, Cipher.PAD_NULL, externalAccess);
+        }
+        if (algorithm == Signature.SIG_CIPHER_AES_CMAC128) {
+            log.debug("getInstance: routing SIG_CIPHER_AES_CMAC128 ({}) to 4-arg getInstance", algorithm);
+            return getInstance(MessageDigest.ALG_NULL, Signature.SIG_CIPHER_AES_CMAC128, Cipher.PAD_ISO9797_M2, externalAccess);
         }
 
         switch (algorithm) {
