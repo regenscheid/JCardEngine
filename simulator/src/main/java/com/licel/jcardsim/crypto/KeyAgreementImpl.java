@@ -63,15 +63,11 @@ public class KeyAgreementImpl extends KeyAgreement {
         if (privateKey == null) {
             CryptoException.throwIt(CryptoException.UNINITIALIZED_KEY);
         }
-        if ((!(privateKey instanceof ECPrivateKeyImpl)) && (!(privateKey instanceof DHPrivateKeyImpl))) {
-            CryptoException.throwIt(CryptoException.ILLEGAL_VALUE);
-        }
-        if(privateKey instanceof ECPrivateKeyImpl) {
-            engine.init(((ECPrivateKeyImpl) privateKey).getParameters());
+        if (privateKey instanceof KeyWithParameters) {
+            engine.init(((KeyWithParameters) privateKey).getParameters());
             this.privateKey = privateKey;
         } else {
-            engine.init(((DHPrivateKeyImpl) privateKey).getParameters());
-            this.privateKey = privateKey;
+            CryptoException.throwIt(CryptoException.ILLEGAL_VALUE);
         }
     }
 
@@ -92,14 +88,16 @@ public class KeyAgreementImpl extends KeyAgreement {
         } else {
             byte[] publicKey = new byte[publicLength];
             Util.arrayCopyNonAtomic(publicData, publicOffset, publicKey, (short) 0, publicLength);
+            ECPrivateKeyParameters ecPrivParams = (ECPrivateKeyParameters) ((KeyWithParameters) privateKey).getParameters();
+            ECDomainParameters domainParams = ecPrivParams.getParameters();
             ECPublicKeyParameters ecp = new ECPublicKeyParameters(
-                    ((ECPrivateKeyParameters) ((ECPrivateKeyImpl) privateKey).getParameters()).getParameters().getCurve().decodePoint(publicKey), ((ECPrivateKeyParameters) ((ECPrivateKeyImpl) privateKey).getParameters()).getParameters());
+                    domainParams.getCurve().decodePoint(publicKey), domainParams);
             byte[] num = engine.calculateAgreement(ecp).toByteArray();
 
             byte[] result;
             if (algorithm != ALG_EC_SVDP_DH_PLAIN_XY && algorithm != ALG_EC_PACE_GM) {
                 // truncate/zero-pad to field size as per the spec:
-                int fieldSize = ((ECPrivateKeyImpl) privateKey).getDomainParameters().getCurve().getFieldSize();
+                int fieldSize = domainParams.getCurve().getFieldSize();
                 result = new byte[(fieldSize + 7) / 8];
                 int numBytes = Math.min(num.length, result.length);
                 Util.arrayCopyNonAtomic(

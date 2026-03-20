@@ -38,7 +38,8 @@ public abstract class ECKeySharedImpl extends KeyImpl implements ECKey {
     }
 
     public void clearKey() {
-        this.sharedDomain.clearKey();
+        // Do NOT clear sharedDomain — it is shared across multiple keys.
+        // Subclasses clear their own key material (s or w).
     }
 
     protected boolean isDomainParametersInitialized() {
