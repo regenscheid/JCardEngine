@@ -93,10 +93,27 @@ public class SymmetricCipherImpl extends Cipher {
             CryptoException.throwIt(CryptoException.INVALID_INIT);
         }
 
+        if (log.isDebugEnabled()) {
+            StringBuilder sb = new StringBuilder();
+            sb.append("doFinal(alg=").append(algorithm & 0xFF);
+            sb.append(engine instanceof org.bouncycastle.crypto.paddings.PaddedBufferedBlockCipher ? " padded" : " nopad");
+            sb.append(") inLen=").append(inLength).append(" in=");
+            for (int i = inOffset; i < inOffset + inLength; i++) sb.append(String.format("%02X", inBuff[i]));
+            log.debug(sb.toString());
+        }
+
         short processedBytes = (short) engine.processBytes(inBuff, inOffset, inLength, outBuff, outOffset);
         try {
-            return (short) (engine.doFinal(outBuff, outOffset + processedBytes) + processedBytes);
+            short total = (short) (engine.doFinal(outBuff, outOffset + processedBytes) + processedBytes);
+            if (log.isDebugEnabled()) {
+                StringBuilder sb = new StringBuilder();
+                sb.append("doFinal result outLen=").append(total).append(" out=");
+                for (int i = outOffset; i < outOffset + total; i++) sb.append(String.format("%02X", outBuff[i]));
+                log.debug(sb.toString());
+            }
+            return total;
         } catch (Exception ex) {
+            log.debug("doFinal exception: {}", ex.getMessage());
             CryptoException.throwIt(CryptoException.ILLEGAL_USE);
         }
         return -1;
