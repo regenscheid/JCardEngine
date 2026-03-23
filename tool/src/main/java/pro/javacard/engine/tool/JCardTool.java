@@ -60,6 +60,13 @@ public class JCardTool {
     static OptionSpec<String> OPT_VSMARTCARD_ATR = parser.accepts("vsmartcard-atr", "VSmartCard ATR").withRequiredArg().ofType(String.class).defaultsTo(AbstractTCPAdapter.DEFAULT_ATR_HEX);
     static OptionSpec<String> OPT_VSMARTCARD_PROTOCOL = parser.accepts("vsmartcard-protocol", "VSmartCard protocol").withRequiredArg().ofType(String.class).defaultsTo("*");
 
+    // Second VSmartCard options (for dual-interface simulation)
+    static OptionSpec<Void> OPT_VSMARTCARD2 = parser.accepts("vsmartcard2", "Run a second VSmartCard client");
+    static OptionSpec<Integer> OPT_VSMARTCARD2_PORT = parser.accepts("vsmartcard2-port", "Second VSmartCard port").withRequiredArg().ofType(Integer.class).defaultsTo(VSmartCardClient.DEFAULT_VSMARTCARD_PORT + 1);
+    static OptionSpec<String> OPT_VSMARTCARD2_HOST = parser.accepts("vsmartcard2-host", "Second VSmartCard host").withRequiredArg().ofType(String.class).defaultsTo(VSmartCardClient.DEFAULT_VSMARTCARD_HOST);
+    static OptionSpec<String> OPT_VSMARTCARD2_ATR = parser.accepts("vsmartcard2-atr", "Second VSmartCard ATR").withRequiredArg().ofType(String.class).defaultsTo(AbstractTCPAdapter.DEFAULT_ATR_HEX);
+    static OptionSpec<String> OPT_VSMARTCARD2_PROTOCOL = parser.accepts("vsmartcard2-protocol", "Second VSmartCard protocol").withRequiredArg().ofType(String.class).defaultsTo("T=CL");
+
     // Oracle options
     static OptionSpec<Void> OPT_JCSDK = parser.accepts("jcsdk", "Run a JCSDK server");
     static OptionSpec<Integer> OPT_JCSDK_PORT = parser.accepts("jcsdk-port", "JCSDK port").withRequiredArg().ofType(Integer.class).defaultsTo(JCSDKServer.DEFAULT_JCSDK_PORT);
@@ -82,13 +89,18 @@ public class JCardTool {
     static OptionSpec<String> OPT_AID = parser.accepts("aid", "Applet AID").withRequiredArg().ofType(String.class);
 
     static AbstractTCPAdapter configureVSmartCard(AbstractTCPAdapter adapter, OptionSet options) {
-        adapter = adapter.withHost(options.valueOf(OPT_VSMARTCARD_HOST));
-        adapter = adapter.withPort(options.valueOf(OPT_VSMARTCARD_PORT));
+        return configureVSmartCard(adapter, options, OPT_VSMARTCARD_HOST, OPT_VSMARTCARD_PORT, OPT_VSMARTCARD_ATR);
+    }
+
+    static AbstractTCPAdapter configureVSmartCard(AbstractTCPAdapter adapter, OptionSet options,
+                                                   OptionSpec<String> hostOpt, OptionSpec<Integer> portOpt, OptionSpec<String> atrOpt) {
+        adapter = adapter.withHost(options.valueOf(hostOpt));
+        adapter = adapter.withPort(options.valueOf(portOpt));
         if (options.has(OPT_ATR)) {
             adapter = adapter.withATR(Hex.decode(options.valueOf(OPT_ATR)));
         }
-        if (options.has(OPT_VSMARTCARD_ATR)) {
-            adapter = adapter.withATR(Hex.decode(options.valueOf(OPT_VSMARTCARD_ATR)));
+        if (options.has(atrOpt)) {
+            adapter = adapter.withATR(Hex.decode(options.valueOf(atrOpt)));
         }
         return adapter;
     }
@@ -123,7 +135,7 @@ public class JCardTool {
             }
 
 
-            ExecutorService exec = Executors.newFixedThreadPool(3);
+            ExecutorService exec = Executors.newFixedThreadPool(4);
             List<AbstractTCPAdapter> adapters = new ArrayList<>();
 
             if (options.has(OPT_PASSTHROUGH_HOST)) {
@@ -196,6 +208,13 @@ public class JCardTool {
                     String protocol = options.has(OPT_VSMARTCARD_PROTOCOL) ? options.valueOf(OPT_VSMARTCARD_PROTOCOL) : options.valueOf(OPT_PROTOCOL);
                     AbstractTCPAdapter adapter = new VSmartCardClient(() -> sim.connectFor(Duration.ofSeconds(1), protocol)); // TODO: parameter for timeout
                     adapter = configureVSmartCard(adapter, options);
+                    adapters.add(adapter);
+                }
+
+                if (options.has(OPT_VSMARTCARD2) || options.has(OPT_VSMARTCARD2_PORT) || options.has(OPT_VSMARTCARD2_HOST) || options.has(OPT_VSMARTCARD2_PROTOCOL) || options.has(OPT_VSMARTCARD2_ATR)) {
+                    String protocol = options.has(OPT_VSMARTCARD2_PROTOCOL) ? options.valueOf(OPT_VSMARTCARD2_PROTOCOL) : options.valueOf(OPT_PROTOCOL);
+                    AbstractTCPAdapter adapter = new VSmartCardClient(() -> sim.connectFor(Duration.ofSeconds(1), protocol));
+                    adapter = configureVSmartCard(adapter, options, OPT_VSMARTCARD2_HOST, OPT_VSMARTCARD2_PORT, OPT_VSMARTCARD2_ATR);
                     adapters.add(adapter);
                 }
 
