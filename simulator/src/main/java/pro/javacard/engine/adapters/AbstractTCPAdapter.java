@@ -88,6 +88,11 @@ public abstract class AbstractTCPAdapter implements Callable<Boolean> {
         return this;
     }
 
+    public AbstractTCPAdapter startDisconnected() {
+        this.currentState = AdapterState.DISCONNECTED;
+        return this;
+    }
+
     // Safe to call from any thread.
     public void tap() {
         log.info("Triggering tap");
@@ -137,7 +142,7 @@ public abstract class AbstractTCPAdapter implements Callable<Boolean> {
             switch (currentState) {
                 case DISCONNECTED:
                     if (session != null) {
-                        session.close(true);
+                        session.close(false); // Don't reset - preserve card state across interface switches
                         session = null;
                     }
                     try {

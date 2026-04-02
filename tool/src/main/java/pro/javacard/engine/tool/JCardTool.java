@@ -35,6 +35,8 @@ import pro.javacard.engine.adapters.JCSDKServer;
 import pro.javacard.engine.adapters.VSmartCardClient;
 
 import java.io.File;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -215,6 +217,7 @@ public class JCardTool {
                     String protocol = options.has(OPT_VSMARTCARD2_PROTOCOL) ? options.valueOf(OPT_VSMARTCARD2_PROTOCOL) : options.valueOf(OPT_PROTOCOL);
                     AbstractTCPAdapter adapter = new VSmartCardClient(() -> sim.connectFor(Duration.ofSeconds(1), protocol));
                     adapter = configureVSmartCard(adapter, options, OPT_VSMARTCARD2_HOST, OPT_VSMARTCARD2_PORT, OPT_VSMARTCARD2_ATR);
+                    adapter.startDisconnected(); // Start dormant; use 's' key to switch
                     adapters.add(adapter);
                 }
 
@@ -247,32 +250,40 @@ public class JCardTool {
             Runtime.getRuntime().addShutdownHook(shutdownThread);
             if (options.has(OPT_CONTROL)) {
                 adapters.forEach(exec::submit);
-                boolean connected = true;
-                // This seems to be the trick to keep ctrl-c working with keypress detection
-                TerminalBuilder tb = TerminalBuilder.builder().nativeSignals(false);
-                try (Terminal terminal = tb.build()) {
-                    terminal.enterRawMode();
-                    NonBlockingReader reader = terminal.reader();
-                    while (!Thread.currentThread().isInterrupted()) {
-                        int c = reader.read();
-                        if (c == 27 || c == 113) {
-                            // esc or q
+                boolean[] connected = {true};
+                int[] activeAdapter = {0};
+
+                if (System.console() != null) {
+                    // Interactive TTY: use jline raw mode for single-keypress control
+                    TerminalBuilder tb = TerminalBuilder.builder().nativeSignals(false);
+                    try (Terminal terminal = tb.build()) {
+                        terminal.enterRawMode();
+                        NonBlockingReader reader = terminal.reader();
+                        while (!Thread.currentThread().isInterrupted()) {
+                            int c = reader.read();
+                            if (c == 27 || c == 113) {
+                                // esc or q
+                                System.err.println("Quit.");
+                                break;
+                            } else {
+                                if (!handleControlCommand(String.valueOf((char) c), adapters, connected, activeAdapter))
+                                    System.err.println("Press 't' to trigger tap, 'c' to toggle connection, 's' to switch interface, 'q' or Esc to quit.");
+                            }
+                        }
+                    }
+                } else {
+                    // Piped stdin: read line-based commands (for scripting)
+                    System.err.println("Control mode (stdin): send 'switch', 'tap', 'connect', 'disconnect', or 'quit'");
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        line = line.trim().toLowerCase();
+                        if (line.equals("quit") || line.equals("q")) {
                             System.err.println("Quit.");
                             break;
-                        } else if (c == 116) {
-                            // 't' tap/reset
-                            System.err.println("Triggering a fresh tap: boop!");
-                            adapters.forEach(AbstractTCPAdapter::tap);
-                        } else if (c == 99) {
-                            // 'c' for connection state
-                            connected = !connected;
-                            boolean finalConnected = connected;
-                            System.err.println(String.format("%s the card", connected ? "Connecting" : "Disconnecting"));
-                            adapters.forEach(a -> a.connected(finalConnected));
                         } else {
-                            // print help
-                            //System.err.println("Unknown key: " + c);
-                            System.err.println("Press 't' to trigger tap, 'c' to toggle connection, 'q' or Esc to quit.");
+                            if (!handleControlCommand(line, adapters, connected, activeAdapter))
+                                System.err.println("Unknown command: " + line + ". Use: switch, tap, connect, disconnect, quit");
                         }
                     }
                 }
@@ -297,6 +308,51 @@ public class JCardTool {
         } catch (Exception e) {
             System.err.println(e.getClass().getSimpleName() + ": " + e.getMessage());
             System.exit(2);
+        }
+    }
+
+    // Returns true if command was recognized
+    private static boolean handleControlCommand(String cmd, List<AbstractTCPAdapter> adapters, boolean[] connected, int[] activeAdapter) {
+        switch (cmd) {
+            case "t":
+            case "tap":
+                System.err.println("Triggering a fresh tap: boop!");
+                adapters.forEach(AbstractTCPAdapter::tap);
+                return true;
+            case "c":
+                // Single-char 'c' toggles connection state (for TTY mode)
+                connected[0] = !connected[0];
+                System.err.println(String.format("%s the card", connected[0] ? "Connecting" : "Disconnecting"));
+                boolean finalConnected = connected[0];
+                adapters.forEach(a -> a.connected(finalConnected));
+                return true;
+            case "connect":
+                if (!connected[0]) {
+                    connected[0] = true;
+                    System.err.println("Connecting the card");
+                    adapters.forEach(a -> a.connected(true));
+                }
+                return true;
+            case "disconnect":
+                if (connected[0]) {
+                    connected[0] = false;
+                    System.err.println("Disconnecting the card");
+                    adapters.forEach(a -> a.connected(false));
+                }
+                return true;
+            case "s":
+            case "switch":
+                if (adapters.size() < 2) {
+                    System.err.println("No second interface to switch to.");
+                } else {
+                    adapters.get(activeAdapter[0]).connected(false);
+                    activeAdapter[0] = (activeAdapter[0] + 1) % adapters.size();
+                    adapters.get(activeAdapter[0]).connected(true);
+                    System.err.println("Switched to interface " + (activeAdapter[0] + 1) + " (" + adapters.get(activeAdapter[0]) + ")");
+                }
+                return true;
+            default:
+                return false;
         }
     }
 
