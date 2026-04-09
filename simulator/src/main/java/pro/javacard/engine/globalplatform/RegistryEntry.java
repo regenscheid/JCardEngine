@@ -54,7 +54,8 @@ public class RegistryEntry implements GPRegistryEntry {
 
     @Override
     public boolean isPrivileged(byte b) {
-        return false;
+        // Grant all privileges by default in the simulator
+        return true;
     }
 
     @Override
