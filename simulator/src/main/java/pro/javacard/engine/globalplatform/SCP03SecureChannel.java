@@ -186,6 +186,61 @@ public final class SCP03SecureChannel extends EngineSecureChannel {
         }
     }
 
+    // Issue #7: unwrap a command reassembled from gp-pro's chained chunks. `wrapped` is the full
+    // wrapped data field (every chunk's data concatenated). gp-pro computes one C-MAC over the whole
+    // un-split command, so MAC the reassembled command here - chaining || CLA INS P1 P2 ||
+    // encodeLcLength(lc) || data - then strip the MAC and, in ENC mode, decrypt. Mirrors
+    // process_mac()/unwrap() but encodes the full, possibly >255-byte Lc the way SCP03Wrapper does.
+    @Override
+    public byte[] unwrapReassembled(byte cla, byte ins, byte p1, byte p2, byte[] wrapped) {
+        requireAuthenticated();
+        final int maclen = s16 ? 16 : 8;
+        final boolean hasMac = (state & SecureChannel.C_MAC) == SecureChannel.C_MAC;
+        byte[] body = wrapped;
+        if (hasMac) {
+            if (wrapped.length < maclen) {
+                ISOException.throwIt(ISO7816.SW_WRONG_LENGTH);
+            }
+            byte[] presented = Arrays.copyOfRange(wrapped, wrapped.length - maclen, wrapped.length);
+            byte[] macData = Arrays.copyOf(wrapped, wrapped.length - maclen);
+            ByteArrayOutputStream bo = new ByteArrayOutputStream();
+            bo.writeBytes(chaining);
+            bo.write(cla);
+            bo.write(ins);
+            bo.write(p1);
+            bo.write(p2);
+            // lc = full wrapped data length (data + MAC), encoded as SCP03Wrapper.wrap() does (3-byte
+            // extended when > 255). The original Le is not recoverable from the chunks; assume <= 256.
+            bo.writeBytes(GPUtils.encodeLcLength(wrapped.length, 256));
+            bo.writeBytes(macData);
+            byte[] cmac = GPCrypto.aes_cmac(macKey, bo.toByteArray(), 128);
+            System.arraycopy(cmac, 0, chaining, 0, chaining.length);
+            if (!Arrays.equals(Arrays.copyOf(cmac, maclen), presented)) {
+                log.error("MAC mismatch on reassembled chained command");
+                resetSecurity();
+                ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
+            }
+            body = macData;
+        }
+        if ((cla & 0x04) == 0x04 && (state & SecureChannel.C_DECRYPTION) == SecureChannel.C_DECRYPTION) {
+            GPCrypto.buffer_increment(enc_counter);
+            if (body.length == 0) {
+                return new byte[0];
+            }
+            try {
+                byte[] iv = GPCrypto.aes_cbc(enc_counter, encKey, new byte[16]);
+                byte[] payload = GPCrypto.aes_cbc_decrypt(body, encKey, iv);
+                return GPCrypto.unpad80(payload);
+            } catch (GeneralSecurityException e) {
+                log.error("Decryption failed", e);
+                resetSecurity();
+                ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
+                return null; // unreachable
+            }
+        }
+        return body;
+    }
+
     @Override
     public short decryptData(byte[] buffer, short offset, short length) throws ISOException {
         Objects.requireNonNull(buffer);

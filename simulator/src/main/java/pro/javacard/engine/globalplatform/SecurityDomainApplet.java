@@ -124,6 +124,17 @@ public class SecurityDomainApplet extends Applet {
     // Multi-block STORE DATA accumulator for the GP-data path.
     private ByteArrayOutputStream storeDataBuffer;
 
+    // Command-chaining reassembly (issue #7). gp-pro (GPSession.transmit) splits a wrapped command
+    // whose data field exceeds the 255-byte short-APDU limit into full 255-byte chunks, marking every
+    // non-final chunk with P1 bit 0x80 (CLA/INS/P2 repeated). A non-final chunk is therefore P1 bit
+    // 0x80 set AND a full 255-byte body; a standalone command never has a full 255-byte body (its
+    // wrapped form would itself have been chained), so this does not misfire on a STORE DATA last
+    // block, which also uses P1 bit 0x80. The chunk data fields are concatenated and only the
+    // reassembled command is unwrapped/MAC-checked/dispatched.
+    private static final byte P1_MORE_CHUNKS = (byte) 0x80;
+    private static final short MAX_CHUNK_LEN = (short) 0xFF;
+    private ByteArrayOutputStream chainBuffer;
+
     // Keys owned by this Security Domain.
     private final LinkedHashMap<Byte, KeySet> keys = new LinkedHashMap<>();
 
@@ -189,9 +200,32 @@ public class SecurityDomainApplet extends Applet {
         }
 
         short len = apdu.setIncomingAndReceive();
+
+        // Command-chaining reassembly (issue #7): buffer non-final chunks, dispatch on the final one.
+        boolean moreChunks = (buffer[ISO7816.OFFSET_P1] & P1_MORE_CHUNKS) != 0 && len == MAX_CHUNK_LEN;
+        if (moreChunks || chainBuffer != null) {
+            if (chainBuffer == null) {
+                chainBuffer = new ByteArrayOutputStream();
+            }
+            chainBuffer.write(buffer, ISO7816.OFFSET_CDATA, len);
+            if (moreChunks) {
+                return; // acknowledge this chunk (9000); the command continues in the next APDU
+            }
+            byte[] wrapped = chainBuffer.toByteArray();
+            chainBuffer = null;
+            byte[] payload = sc.unwrapReassembled(buffer[ISO7816.OFFSET_CLA], buffer[ISO7816.OFFSET_INS],
+                    buffer[ISO7816.OFFSET_P1], buffer[ISO7816.OFFSET_P2], wrapped);
+            dispatch(ins, apdu, buffer, payload);
+            return;
+        }
+
         sc.unwrap(buffer, ISO7816.OFFSET_CLA, (short) (ISO7816.OFFSET_CDATA + len));
         byte[] payload = Arrays.copyOfRange(buffer, ISO7816.OFFSET_CDATA, ISO7816.OFFSET_CDATA + (buffer[ISO7816.OFFSET_LC] & 0xFF));
+        dispatch(ins, apdu, buffer, payload);
+    }
 
+    // GP command dispatch, shared by the single-APDU path and the reassembled command-chaining path.
+    private void dispatch(byte ins, APDU apdu, byte[] buffer, byte[] payload) {
         // Funnel malformed-data IllegalArgumentException (AIDUtil.create, LV.parse) to SW_WRONG_DATA.
         try {
             switch (ins) {
@@ -587,10 +621,14 @@ public class SecurityDomainApplet extends Applet {
         AID targetAid = personalizationTarget;
         var sim = Simulator.current();
 
-        // Build full STORE DATA command: CLA + INS + P1 + P2 + Lc + data
+        // Build full STORE DATA command: CLA + INS + P1 + P2 + Lc + data. The data comes from
+        // `payload` (the reassembled command body for chained commands), not the APDU buffer, which
+        // for a chained command holds only the final chunk.
         short cmdLen = (short) (ISO7816.OFFSET_CDATA + payload.length);
         byte[] cmdBuffer = new byte[cmdLen];
-        Util.arrayCopyNonAtomic(buffer, (short) 0, cmdBuffer, (short) 0, cmdLen);
+        Util.arrayCopyNonAtomic(buffer, (short) 0, cmdBuffer, (short) 0, (short) ISO7816.OFFSET_CDATA);
+        cmdBuffer[ISO7816.OFFSET_LC] = (byte) payload.length;
+        Util.arrayCopyNonAtomic(payload, (short) 0, cmdBuffer, (short) ISO7816.OFFSET_CDATA, (short) payload.length);
 
         boolean lastBlock = (buffer[ISO7816.OFFSET_P1] & (byte) 0x80) != 0;
 

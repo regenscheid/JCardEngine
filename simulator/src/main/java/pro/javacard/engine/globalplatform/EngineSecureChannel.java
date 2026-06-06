@@ -80,6 +80,17 @@ public abstract sealed class EngineSecureChannel implements SecureChannel permit
         }
     }
 
+    // Unwrap a command reassembled from gp-pro command-chaining chunks (issue #7). gp-pro
+    // (GPSession.transmit) splits a wrapped command whose data field exceeds the 255-byte short-APDU
+    // limit into chunks, flagging non-final chunks with P1 bit 0x80; the C-MAC is computed once over
+    // the whole (un-split) command. The SD reassembles the chunk data fields and calls this with the
+    // final chunk's header and the concatenated wrapped data; it returns the plaintext payload.
+    // Default: only SCP03 implements this; other SCPs reject rather than silently mis-MAC.
+    public byte[] unwrapReassembled(byte cla, byte ins, byte p1, byte p2, byte[] wrapped) {
+        ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
+        return null; // unreachable
+    }
+
     // Max plaintext response payload that fits in a 256-byte APDU response after wrap().
     abstract short maxResponseLength();
 
