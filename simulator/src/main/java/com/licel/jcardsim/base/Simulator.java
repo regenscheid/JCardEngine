@@ -179,12 +179,20 @@ public class Simulator implements JavaCardEngine, JavaCardRuntime {
         if (creator != Thread.currentThread()) {
             log.error("Do not call from a different thread.");
         }
-        return installApplet(aid, appletClass, parameters, false);
+        return installApplet(aid, appletClass, null, parameters, false);
+    }
+
+    @Override
+    public AID installApplet(AID aid, Class<? extends Applet> appletClass, byte[] privileges, byte[] parameters) throws SystemException {
+        if (creator != Thread.currentThread()) {
+            log.error("Do not call from a different thread.");
+        }
+        return installApplet(aid, appletClass, privileges, parameters, false);
     }
 
     // These load the applet without class isolation, so that internals are exposed to caller.
     public AID installExposedApplet(AID aid, Class<? extends Applet> appletClass, byte[] params) {
-        return installApplet(aid, appletClass, params, true);
+        return installApplet(aid, appletClass, null, params, true);
     }
 
     // Keeps track of selected applet and triggers deselect/select invocation
@@ -914,7 +922,7 @@ public class Simulator implements JavaCardEngine, JavaCardRuntime {
         return appletAID;
     }
 
-    private AID installApplet(AID appletAID, Class<? extends Applet> appletClass, byte[] parameters, boolean exposed) {
+    private AID installApplet(AID appletAID, Class<? extends Applet> appletClass, byte[] privileges, byte[] parameters, boolean exposed) {
         try (var sim = asCurrent()) {
             // If there is a currently selected applet, deselect it. installApplet is like implicit selection of card manager
             if (activeAID != null) {
@@ -923,7 +931,7 @@ public class Simulator implements JavaCardEngine, JavaCardRuntime {
             // Install as the ISD, so install() sees getPreviousContextAID() == ISD like a GP install.
             contextStack.push(globalPlatform.isd().getAID());
             try {
-                return internalInstallApplet(appletAID, appletClass, null, parameters, exposed, null);
+                return internalInstallApplet(appletAID, appletClass, privileges, parameters, exposed, null);
             } finally {
                 contextStack.pop();
             }
