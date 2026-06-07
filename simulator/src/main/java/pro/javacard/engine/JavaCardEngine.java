@@ -23,6 +23,11 @@ public interface JavaCardEngine {
         return installApplet(aid, appletClass, new byte[0]);
     }
 
+    // Install granting GP privileges to the instance. `privileges` is the GP privilege bitfield
+    // (1 or 3 bytes, as carried by an INSTALL command); empty/null grants none. Without privileges
+    // the instance's isPrivileged(...) is always false, which gates e.g. Global PIN (CVM) management.
+    AID installApplet(AID aid, Class<? extends Applet> appletClass, byte[] privileges, byte[] parameters);
+
     AID installExposedApplet(AID aid, Class<? extends Applet> appletClass, byte[] parameters);
 
     default AID installExposedApplet(AID aid, Class<? extends Applet> appletClass) {

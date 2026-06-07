@@ -167,6 +167,20 @@ public class Simulator implements JavaCardEngine, JavaCardRuntime {
         return installApplet(aid, appletClass, parameters, false);
     }
 
+    @Override
+    public AID installApplet(AID aid, Class<? extends Applet> appletClass, byte[] privileges, byte[] parameters) throws SystemException {
+        if (creator != Thread.currentThread()) {
+            log.error("Do not call from a different thread.");
+        }
+        try (var s = asCurrent()) {
+            // installApplet is like implicit selection of the card manager: deselect any active applet.
+            if (activeAID != null) {
+                deselect(globalPlatform.lookup(activeAID));
+            }
+            return internalInstallApplet(aid, appletClass, privileges, parameters, false, null);
+        }
+    }
+
     // These load the applet without class isolation, so that internals are exposed to caller.
     public AID installExposedApplet(AID aid, Class<? extends Applet> appletClass, byte[] params) {
         return installApplet(aid, appletClass, params, true);

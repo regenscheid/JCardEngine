@@ -20,6 +20,8 @@ import org.jline.terminal.TerminalBuilder;
 import org.jline.utils.NonBlockingReader;
 import pro.javacard.capfile.CAPFile;
 import pro.javacard.engine.JavaCardEngine;
+import pro.javacard.gp.GPRegistryEntry.Privilege;
+import pro.javacard.gp.data.BitField;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -79,6 +81,7 @@ public class JCardTool {
     static OptionSpec<String> OPT_APPLET = parser.accepts("applet", "Applet class to install").withRequiredArg().ofType(String.class);
     static OptionSpec<String> OPT_PARAMS = parser.accepts("params", "Installation parameters").withRequiredArg().ofType(String.class);
     static OptionSpec<String> OPT_AID = parser.accepts("aid", "Applet AID").withRequiredArg().ofType(String.class);
+    static OptionSpec<String> OPT_PRIVILEGES = parser.accepts("privileges", "GP privileges to grant the installed applet, comma-separated (e.g. CVMManagement,CardReset)").withRequiredArg().ofType(String.class);
 
     // Class loader for .jar/.cap/classes
     static final AppletClassLoader loader = new AppletClassLoader();
@@ -185,8 +188,13 @@ public class JCardTool {
                     System.exit(1);
                 }
 
+                byte[] privileges = parsePrivileges(options.valueOf(OPT_PRIVILEGES));
                 for (InstallSpec s : spec) {
-                    sim.installApplet(s.getAID(), s.getAppletClass(), s.getParamters());
+                    if (privileges != null) {
+                        sim.installApplet(s.getAID(), s.getAppletClass(), privileges, s.getParamters());
+                    } else {
+                        sim.installApplet(s.getAID(), s.getAppletClass(), s.getParamters());
+                    }
                 }
 
                 if (options.has(OPT_VSMARTCARD) || options.has(OPT_VSMARTCARD_PORT) || options.has(OPT_VSMARTCARD_HOST) || options.has(OPT_VSMARTCARD_PROTOCOL) || options.has(OPT_VSMARTCARD_ATR)) {
@@ -353,6 +361,33 @@ public class JCardTool {
             default:
                 return false;
         }
+    }
+
+    // Encode a comma-separated list of GP privilege names (e.g. "CVMManagement,CardReset") into the
+    // GP privilege bitfield expected by installApplet(). Returns null when no --privileges was given.
+    private static byte[] parsePrivileges(String spec) {
+        if (spec == null || spec.isBlank()) {
+            return null;
+        }
+        var privs = EnumSet.noneOf(Privilege.class);
+        for (String name : spec.split(",")) {
+            String n = name.trim();
+            if (n.isEmpty()) {
+                continue;
+            }
+            Privilege match = null;
+            for (Privilege p : Privilege.values()) {
+                if (p.name().equalsIgnoreCase(n)) {
+                    match = p;
+                    break;
+                }
+            }
+            if (match == null) {
+                throw new IllegalArgumentException("Unknown privilege '" + n + "'. Valid: " + Arrays.toString(Privilege.values()));
+            }
+            privs.add(match);
+        }
+        return privs.isEmpty() ? null : BitField.toBytes(privs);
     }
 
     @SuppressWarnings("unchecked")
