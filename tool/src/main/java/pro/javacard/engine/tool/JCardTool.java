@@ -210,7 +210,9 @@ public class JCardTool {
                     AbstractTCPAdapter adapter = new VSmartCardClient(p -> sim.connectFor(Duration.ofSeconds(1), p, true));
                     adapter = adapter.withProtocol(protocol);
                     adapter = configureVSmartCard(adapter, options, OPT_VSMARTCARD2_HOST, OPT_VSMARTCARD2_PORT, OPT_VSMARTCARD2_ATR);
-                    adapter.connected(false); // Start dormant; use 's'/'switch' to activate this interface
+                    // Both interfaces start active; apdu4j's connected(false) can't be called before the
+                    // adapter's thread exists (it does thread.interrupt() unconditionally -> NPE). Use the
+                    // 's'/switch and connect/disconnect control commands at runtime to manage which is live.
                     adapters.add(adapter);
                 }
 
