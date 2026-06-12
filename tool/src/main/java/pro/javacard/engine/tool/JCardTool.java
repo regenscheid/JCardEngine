@@ -199,7 +199,7 @@ public class JCardTool {
 
                 if (options.has(OPT_VSMARTCARD) || options.has(OPT_VSMARTCARD_PORT) || options.has(OPT_VSMARTCARD_HOST) || options.has(OPT_VSMARTCARD_PROTOCOL) || options.has(OPT_VSMARTCARD_ATR)) {
                     var protocol = options.has(OPT_VSMARTCARD_PROTOCOL) ? options.valueOf(OPT_VSMARTCARD_PROTOCOL) : options.valueOf(OPT_PROTOCOL);
-                    AbstractTCPAdapter adapter = new VSmartCardClient(p -> sim.connectFor(Duration.ofSeconds(1), p, true)); // TODO: parameter for timeout
+                    AbstractTCPAdapter adapter = new VSmartCardClient(p -> sim.connectFor(Duration.ofSeconds(1), p, false)); // TODO: parameter for timeout
                     adapter = adapter.withProtocol(protocol);
                     adapter = configureVSmartCard(adapter, options);
                     adapters.add(adapter);
@@ -207,7 +207,7 @@ public class JCardTool {
 
                 if (options.has(OPT_VSMARTCARD2) || options.has(OPT_VSMARTCARD2_PORT) || options.has(OPT_VSMARTCARD2_HOST) || options.has(OPT_VSMARTCARD2_PROTOCOL) || options.has(OPT_VSMARTCARD2_ATR)) {
                     var protocol = options.has(OPT_VSMARTCARD2_PROTOCOL) ? options.valueOf(OPT_VSMARTCARD2_PROTOCOL) : options.valueOf(OPT_PROTOCOL);
-                    AbstractTCPAdapter adapter = new VSmartCardClient(p -> sim.connectFor(Duration.ofSeconds(1), p, true));
+                    AbstractTCPAdapter adapter = new VSmartCardClient(p -> sim.connectFor(Duration.ofSeconds(1), p, false));
                     adapter = adapter.withProtocol(protocol);
                     adapter = configureVSmartCard(adapter, options, OPT_VSMARTCARD2_HOST, OPT_VSMARTCARD2_PORT, OPT_VSMARTCARD2_ATR);
                     // Both interfaces start active; apdu4j's connected(false) can't be called before the
@@ -256,9 +256,15 @@ public class JCardTool {
 
             Runtime.getRuntime().addShutdownHook(shutdownThread);
             if (options.has(OPT_CONTROL)) {
-                adapters.forEach(exec::submit);
-                boolean[] connected = {true};
+                // A card lives in one reader at a time: start only the active interface presenting the
+                // card. Other interfaces stay dormant (their reader reports no card) until 's'/switch
+                // hands the single card over, submitting that adapter on first use.
                 int[] activeAdapter = {0};
+                boolean[] started = new boolean[adapters.size()];
+                if (!adapters.isEmpty()) {
+                    exec.submit(adapters.get(0));
+                    started[0] = true;
+                }
 
                 if (System.console() != null) {
                     // Interactive TTY: use jline raw mode for single-keypress control.
@@ -274,8 +280,8 @@ public class JCardTool {
                                 System.err.println("Quit.");
                                 break;
                             } else {
-                                if (!handleControlCommand(String.valueOf((char) c), adapters, connected, activeAdapter))
-                                    System.err.println("Press 't' to trigger tap, 'c' to toggle connection, 's' to switch interface, 'q' or Esc to quit.");
+                                if (!handleControlCommand(String.valueOf((char) c), adapters, exec, started, activeAdapter))
+                                    System.err.println("Press 't' to trigger tap, 'c'/'connect' present, 'disconnect' remove, 's' to switch interface, 'q' or Esc to quit.");
                             }
                         }
                     }
@@ -290,7 +296,7 @@ public class JCardTool {
                             System.err.println("Quit.");
                             break;
                         } else {
-                            if (!handleControlCommand(line, adapters, connected, activeAdapter))
+                            if (!handleControlCommand(line, adapters, exec, started, activeAdapter))
                                 System.err.println("Unknown command: " + line + ". Use: switch, tap, connect, disconnect, quit");
                         }
                     }
@@ -320,45 +326,54 @@ public class JCardTool {
         }
     }
 
-    // Returns true if command was recognized
-    private static boolean handleControlCommand(String cmd, List<AbstractTCPAdapter> adapters, boolean[] connected, int[] activeAdapter) {
+    // Returns true if command was recognized. The card is presented on one interface at a time;
+    // 'started' tracks which adapters have been submitted (dormant ones never present a card), and
+    // commands act on the currently active interface.
+    private static boolean handleControlCommand(String cmd, List<AbstractTCPAdapter> adapters, ExecutorService exec, boolean[] started, int[] activeAdapter) {
+        int active = activeAdapter[0];
         switch (cmd) {
             case "t":
             case "tap":
                 System.err.println("Triggering a fresh tap: boop!");
-                adapters.forEach(AbstractTCPAdapter::tap);
+                if (active < started.length && started[active]) {
+                    adapters.get(active).tap();
+                }
                 return true;
             case "c":
-                // Single-char 'c' toggles connection state (for TTY mode)
-                connected[0] = !connected[0];
-                System.err.println(String.format("%s the card", connected[0] ? "Connecting" : "Disconnecting"));
-                boolean finalConnected = connected[0];
-                adapters.forEach(a -> a.connected(finalConnected));
-                return true;
             case "connect":
-                if (!connected[0]) {
-                    connected[0] = true;
+                // Present the card on the active interface.
+                if (active < started.length && started[active]) {
                     System.err.println("Connecting the card");
-                    adapters.forEach(a -> a.connected(true));
+                    adapters.get(active).connected(true);
                 }
                 return true;
             case "disconnect":
-                if (connected[0]) {
-                    connected[0] = false;
+                // Remove the card from the active interface.
+                if (active < started.length && started[active]) {
                     System.err.println("Disconnecting the card");
-                    adapters.forEach(a -> a.connected(false));
+                    adapters.get(active).connected(false);
                 }
                 return true;
             case "s":
             case "switch":
                 if (adapters.size() < 2) {
                     System.err.println("No second interface to switch to.");
-                } else {
-                    adapters.get(activeAdapter[0]).connected(false);
-                    activeAdapter[0] = (activeAdapter[0] + 1) % adapters.size();
-                    adapters.get(activeAdapter[0]).connected(true);
-                    System.err.println("Switched to interface " + (activeAdapter[0] + 1) + " (" + adapters.get(activeAdapter[0]) + ")");
+                    return true;
                 }
+                // Hand the one card to the next reader: remove it from the current interface, present
+                // it on the next. State (EEPROM + transient) carries across - it is the same card.
+                if (started[active]) {
+                    adapters.get(active).connected(false);
+                }
+                activeAdapter[0] = (active + 1) % adapters.size();
+                int next = activeAdapter[0];
+                if (!started[next]) {
+                    exec.submit(adapters.get(next)); // first activation: starts presenting the card
+                    started[next] = true;
+                } else {
+                    adapters.get(next).connected(true);
+                }
+                System.err.println("Switched to interface " + (next + 1) + " (" + adapters.get(next) + ")");
                 return true;
             default:
                 return false;
