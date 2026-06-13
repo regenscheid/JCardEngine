@@ -1,0 +1,21 @@
+NIST ACVP Test Vectors — U.S. Government Work, Public Domain
+
+The JSON files under simulator/src/test/resources/pqc/acvp/ are known-answer
+test vectors extracted (and trimmed to the fields used) from the NIST
+Automated Cryptographic Validation Protocol (ACVP) reference data:
+
+    https://github.com/usnistgov/ACVP-Server
+    gen-val/json-files/ML-DSA-keyGen-FIPS204/internalProjection.json
+    gen-val/json-files/ML-KEM-keyGen-FIPS203/internalProjection.json
+    gen-val/json-files/ML-DSA-sigGen-FIPS204/internalProjection.json
+
+These vectors are produced by the National Institute of Standards and
+Technology (NIST), an agency of the U.S. Department of Commerce. Pursuant to
+17 U.S.C. § 105, works prepared by U.S. Government employees as part of their
+official duties are not subject to copyright protection in the United States
+and are in the public domain.
+
+NIST-developed software and data are provided "AS IS." NIST makes no warranty
+of any kind, express, implied, or statutory, including, without limitation,
+the implied warranties of merchantability and fitness for a particular
+purpose, and disclaims any liability for any damages arising from their use.
