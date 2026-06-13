@@ -37,6 +37,16 @@ precedence = "aggregate"
 SPDX-FileCopyrightText = "The Apache Software Foundation"
 SPDX-License-Identifier = "Apache-2.0"
 
+# NIST ACVP known-answer test vectors (FIPS 203/204), trimmed to the fields
+# used by the PQC KAT suite. U.S. Government work, public domain (17 U.S.C. 105).
+[[annotations]]
+path = [
+    "simulator/src/test/resources/pqc/acvp/*.json",
+]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "National Institute of Standards and Technology (NIST)"
+SPDX-License-Identifier = "LicenseRef-NIST-ACVP-PublicDomain"
+
 # org.globalplatform.* API jar - GlobalPlatform Specification License
 # Agreement (see LICENSES/LicenseRef-GlobalPlatform-API.txt).
 [[annotations]]

@@ -45,6 +45,13 @@
             <artifactId>slf4j-api</artifactId>
             <version>2.0.17</version>
         </dependency>
+        <!-- BouncyCastle: declared directly so the FIPS 203/204 (ML-DSA/ML-KEM) implementations
+             the PQC extension relies on are pinned, not silently inherited from globalplatformpro. -->
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcprov-jdk18on</artifactId>
+            <version>${bouncycastle.version}</version>
+        </dependency>
         <!-- Instance proxy for Applets -->
         <dependency>
             <groupId>net.bytebuddy</groupId>
