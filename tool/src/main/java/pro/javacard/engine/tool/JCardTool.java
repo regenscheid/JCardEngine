@@ -199,7 +199,7 @@ public class JCardTool {
 
                 if (options.has(OPT_VSMARTCARD) || options.has(OPT_VSMARTCARD_PORT) || options.has(OPT_VSMARTCARD_HOST) || options.has(OPT_VSMARTCARD_PROTOCOL) || options.has(OPT_VSMARTCARD_ATR)) {
                     var protocol = options.has(OPT_VSMARTCARD_PROTOCOL) ? options.valueOf(OPT_VSMARTCARD_PROTOCOL) : options.valueOf(OPT_PROTOCOL);
-                    AbstractTCPAdapter adapter = new VSmartCardClient(p -> sim.connectFor(Duration.ofSeconds(1), p, false)); // TODO: parameter for timeout
+                    AbstractTCPAdapter adapter = new VSmartCardClient(p -> sim.connectFor(Duration.ofSeconds(1), p, true)); // TODO: parameter for timeout
                     adapter = adapter.withProtocol(protocol);
                     adapter = configureVSmartCard(adapter, options);
                     adapters.add(adapter);
@@ -207,7 +207,7 @@ public class JCardTool {
 
                 if (options.has(OPT_VSMARTCARD2) || options.has(OPT_VSMARTCARD2_PORT) || options.has(OPT_VSMARTCARD2_HOST) || options.has(OPT_VSMARTCARD2_PROTOCOL) || options.has(OPT_VSMARTCARD2_ATR)) {
                     var protocol = options.has(OPT_VSMARTCARD2_PROTOCOL) ? options.valueOf(OPT_VSMARTCARD2_PROTOCOL) : options.valueOf(OPT_PROTOCOL);
-                    AbstractTCPAdapter adapter = new VSmartCardClient(p -> sim.connectFor(Duration.ofSeconds(1), p, false));
+                    AbstractTCPAdapter adapter = new VSmartCardClient(p -> sim.connectFor(Duration.ofSeconds(1), p, true));
                     adapter = adapter.withProtocol(protocol);
                     adapter = configureVSmartCard(adapter, options, OPT_VSMARTCARD2_HOST, OPT_VSMARTCARD2_PORT, OPT_VSMARTCARD2_ATR);
                     // Both interfaces start active; apdu4j's connected(false) can't be called before the
