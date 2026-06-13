@@ -47,4 +47,20 @@ public class CommandChainingTest {
             assertEquals(0x6D00, resp.getSW(), "unwrap should succeed and reach the unknown-INS dispatch default (ENC)");
         }
     }
+
+    // E2.2 frame-count smoke test: a >5 KB wrapped command (the magnitude of an ML-DSA-87
+    // GENERAL AUTHENTICATE payload) splits into ~24 chained 255-byte chunks. The SD must
+    // reassemble all of them before unwrap/MAC-check — this exercises the chunk loop far past
+    // the 2-chunk case above and catches any frame-count assumption in the reassembly path.
+    @Test
+    void largeChainedCommandReassembledOverManyFrames() throws Exception {
+        var sim = new JavaCardEngine.Builder().build();
+        try (var bibo = sim.connect()) {
+            GPSession gp = openIsd(bibo, EnumSet.of(GPSession.APDUMode.MAC));
+            var resp = gp.transmit(new CommandAPDU(0x80, UNKNOWN_INS, 0x00, 0x00, new byte[6000]));
+            System.out.println(">>> large chained SW = " + String.format("%04X", resp.getSW()));
+            assertNotEquals(0x6985, resp.getSW(), "C-MAC must validate over the reassembled >5 KB chained command");
+            assertEquals(0x6D00, resp.getSW(), "reassembly of all chunks should succeed and reach the unknown-INS default");
+        }
+    }
 }
