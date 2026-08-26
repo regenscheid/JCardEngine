@@ -4,28 +4,34 @@ package pro.javacard.engine.pqc;
 
 import com.licel.jcardsim.SimulatorCoreTest;
 import javacard.security.CryptoException;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 import java.util.Arrays;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.expectThrows;
 
 /**
  * Functional tests for the ML-KEM extension API (plan items E1.2, E1.3, E1.5).
  */
 public class MLKEMTest extends SimulatorCoreTest {
 
-    @AfterEach
-    void resetConfig() {
+    @AfterMethod
+    public void resetConfig() {
         PQCConfig.setEnabled(true);
         PQCConfig.useSystemRandom();
+    }
+
+    @DataProvider(name = "paramSets")
+    public static Object[][] paramSets() {
+        return new Object[][] {
+                {MLKEM.ML_KEM_512},
+                {MLKEM.ML_KEM_768},
+                {MLKEM.ML_KEM_1024},
+        };
     }
 
     private static byte[] seed(int fill) {
@@ -36,9 +42,8 @@ public class MLKEMTest extends SimulatorCoreTest {
         return dz;
     }
 
-    @ParameterizedTest
-    @ValueSource(bytes = {MLKEM.ML_KEM_512, MLKEM.ML_KEM_768, MLKEM.ML_KEM_1024})
-    void encapsulateDecapsulateRoundTrip(byte paramSet) {
+    @Test(dataProvider = "paramSets")
+    public void encapsulateDecapsulateRoundTrip(byte paramSet) {
         MLKEMPublicKey pub = new MLKEMPublicKey(paramSet);
         MLKEMPrivateKey priv = new MLKEMPrivateKey(paramSet);
         MLKEM.generateKeyPair(pub, priv);
@@ -46,18 +51,17 @@ public class MLKEMTest extends SimulatorCoreTest {
         byte[] ct = new byte[MLKEM.ciphertextLength(paramSet)];
         byte[] ssEncap = new byte[MLKEM.SHARED_SECRET_LENGTH];
         short ctLen = MLKEM.encapsulate(pub, ct, (short) 0, ssEncap, (short) 0);
-        assertEquals(MLKEM.ciphertextLength(paramSet), ctLen);
+        assertEquals(ctLen, MLKEM.ciphertextLength(paramSet));
 
         byte[] ssDecap = new byte[MLKEM.SHARED_SECRET_LENGTH];
         short ssLen = MLKEM.decapsulate(priv, ct, (short) 0, ctLen, ssDecap, (short) 0);
-        assertEquals(MLKEM.SHARED_SECRET_LENGTH, ssLen);
+        assertEquals(ssLen, MLKEM.SHARED_SECRET_LENGTH);
 
-        assertArrayEquals(ssEncap, ssDecap, "encapsulated and decapsulated secrets must match");
+        assertEquals(ssDecap, ssEncap, "encapsulated and decapsulated secrets must match");
     }
 
-    @ParameterizedTest
-    @ValueSource(bytes = {MLKEM.ML_KEM_512, MLKEM.ML_KEM_768, MLKEM.ML_KEM_1024})
-    void seedImportIsDeterministic(byte paramSet) {
+    @Test(dataProvider = "paramSets")
+    public void seedImportIsDeterministic(byte paramSet) {
         byte[] dz = seed(9);
 
         MLKEMPublicKey pubA = new MLKEMPublicKey(paramSet);
@@ -69,11 +73,11 @@ public class MLKEMTest extends SimulatorCoreTest {
         byte[] b = new byte[MLKEM.encapsulationKeyLength(paramSet)];
         pubA.getEncoded(a, (short) 0);
         pubB.getEncoded(b, (short) 0);
-        assertArrayEquals(a, b, "same seed must yield the same encapsulation key");
+        assertEquals(b, a, "same seed must yield the same encapsulation key");
     }
 
     @Test
-    void decapsulateWithSeedImportedKey() {
+    public void decapsulateWithSeedImportedKey() {
         // Host holds the public key; card holds only the 64-byte seed (the applet's import model).
         byte paramSet = MLKEM.ML_KEM_768;
         byte[] dz = seed(5);
@@ -87,11 +91,11 @@ public class MLKEMTest extends SimulatorCoreTest {
 
         byte[] ssCard = new byte[MLKEM.SHARED_SECRET_LENGTH];
         MLKEM.decapsulate(priv, ct, (short) 0, (short) ct.length, ssCard, (short) 0);
-        assertArrayEquals(ssHost, ssCard);
+        assertEquals(ssCard, ssHost);
     }
 
     @Test
-    void clearKeyZeroizes() {
+    public void clearKeyZeroizes() {
         MLKEMPublicKey pub = new MLKEMPublicKey(MLKEM.ML_KEM_512);
         MLKEMPrivateKey priv = new MLKEMPrivateKey(MLKEM.ML_KEM_512);
         MLKEM.generateKeyPair(pub, priv);
@@ -102,16 +106,16 @@ public class MLKEMTest extends SimulatorCoreTest {
     }
 
     @Test
-    void disabledExtensionThrows() {
+    public void disabledExtensionThrows() {
         MLKEMPublicKey pub = new MLKEMPublicKey(MLKEM.ML_KEM_512);
         MLKEMPrivateKey priv = new MLKEMPrivateKey(MLKEM.ML_KEM_512);
         PQCConfig.setEnabled(false);
-        assertThrows(CryptoException.class, () -> MLKEM.generateKeyPair(pub, priv));
+        expectThrows(CryptoException.class, () -> MLKEM.generateKeyPair(pub, priv));
     }
 
     @Test
-    void invalidParamSetRejected() {
-        assertThrows(CryptoException.class, () -> new MLKEMPublicKey((byte) 42));
+    public void invalidParamSetRejected() {
+        expectThrows(CryptoException.class, () -> new MLKEMPublicKey((byte) 42));
     }
 
     /**
@@ -122,9 +126,8 @@ public class MLKEMTest extends SimulatorCoreTest {
      * word, no timing branch) at the card edge. This guards against an engine regression that adds a
      * "ciphertext validity" check (see the applet's ENGINE-API-CONTRACT.md requirement 5).
      */
-    @ParameterizedTest
-    @ValueSource(bytes = {MLKEM.ML_KEM_512, MLKEM.ML_KEM_768, MLKEM.ML_KEM_1024})
-    void implicitRejectionOnCorruptedCiphertext(byte paramSet) {
+    @Test(dataProvider = "paramSets")
+    public void implicitRejectionOnCorruptedCiphertext(byte paramSet) {
         MLKEMPublicKey pub = new MLKEMPublicKey(paramSet);
         MLKEMPrivateKey priv = new MLKEMPrivateKey(paramSet);
         MLKEM.generateKeyPair(pub, priv);
@@ -137,16 +140,15 @@ public class MLKEMTest extends SimulatorCoreTest {
         ct[0] ^= (byte) 0xFF;
 
         byte[] ssRej = new byte[MLKEM.SHARED_SECRET_LENGTH];
-        short ssLen = assertDoesNotThrow(
-                () -> MLKEM.decapsulate(priv, ct, (short) 0, ctLen, ssRej, (short) 0),
-                "decapsulating an invalid ciphertext must not throw (implicit rejection)");
-        assertEquals(MLKEM.SHARED_SECRET_LENGTH, ssLen, "implicit rejection still returns a 32-byte secret");
+        // Decapsulating an invalid ciphertext must not throw (implicit rejection); an exception fails the test.
+        short ssLen = MLKEM.decapsulate(priv, ct, (short) 0, ctLen, ssRej, (short) 0);
+        assertEquals(ssLen, MLKEM.SHARED_SECRET_LENGTH, "implicit rejection still returns a 32-byte secret");
         assertFalse(Arrays.equals(ssReal, ssRej),
                 "implicit-rejection secret must differ from the real shared secret");
 
         // The rejection secret is deterministic for a given key and ciphertext (derived from z).
         byte[] ssRej2 = new byte[MLKEM.SHARED_SECRET_LENGTH];
         MLKEM.decapsulate(priv, ct, (short) 0, ctLen, ssRej2, (short) 0);
-        assertArrayEquals(ssRej, ssRej2, "implicit rejection is deterministic for a given key and ciphertext");
+        assertEquals(ssRej2, ssRej, "implicit rejection is deterministic for a given key and ciphertext");
     }
 }

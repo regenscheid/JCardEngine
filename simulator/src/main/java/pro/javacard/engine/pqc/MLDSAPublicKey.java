@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 package pro.javacard.engine.pqc;
 
-import com.licel.jcardsim.crypto.ByteContainer;
 import javacard.framework.JCSystem;
 import javacard.security.CryptoException;
 import javacard.security.PublicKey;
@@ -11,7 +10,7 @@ import org.bouncycastle.crypto.params.MLDSAPublicKeyParameters;
 
 /**
  * ML-DSA (FIPS 204) public key handle. Holds the raw encoded public key in a
- * {@link ByteContainer}.
+ * a fixed-width {@link KeyBytes} slot.
  *
  * @see MLDSA
  */
@@ -21,7 +20,7 @@ public final class MLDSAPublicKey implements PublicKey {
     public static final byte TYPE_ML_DSA_PUBLIC = (byte) 0x72;
 
     private final byte paramSet;
-    private final ByteContainer encoded;
+    private final KeyBytes encoded;
 
     /**
      * Construct an uninitialized key in persistent memory.
@@ -41,7 +40,7 @@ public final class MLDSAPublicKey implements PublicKey {
     public MLDSAPublicKey(byte paramSet, byte memoryType) {
         MLDSA.bcParameters(paramSet); // validates paramSet
         this.paramSet = paramSet;
-        this.encoded = new ByteContainer(memoryType);
+        this.encoded = new KeyBytes(memoryType, MLDSA.publicKeyLength(paramSet));
     }
 
     /**

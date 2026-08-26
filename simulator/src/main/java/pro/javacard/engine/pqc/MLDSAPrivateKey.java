@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 package pro.javacard.engine.pqc;
 
-import com.licel.jcardsim.crypto.ByteContainer;
 import javacard.framework.JCSystem;
 import javacard.security.CryptoException;
 import javacard.security.PrivateKey;
@@ -12,7 +11,7 @@ import org.bouncycastle.crypto.params.MLDSAPrivateKeyParameters;
 /**
  * ML-DSA (FIPS 204) private key handle.
  *
- * <p>Stored in <i>seed form</i> only: a single 32-byte &xi; backed by {@link ByteContainer}, so
+ * <p>Stored in <i>seed form</i> only: a single 32-byte &xi; backed by a fixed-width {@link KeyBytes} slot, so
  * {@link #clearKey()} zeroizes the complete secret and no expanded key ever persists. The
  * expanded BouncyCastle key is reconstructed on demand for each operation
  * ({@link #toBcParams()}).
@@ -28,7 +27,7 @@ public final class MLDSAPrivateKey implements PrivateKey {
     public static final short SEED_LENGTH = 32;
 
     private final byte paramSet;
-    private final ByteContainer seed;
+    private final KeyBytes seed;
 
     /**
      * Construct an uninitialized key in persistent memory.
@@ -48,7 +47,7 @@ public final class MLDSAPrivateKey implements PrivateKey {
     public MLDSAPrivateKey(byte paramSet, byte memoryType) {
         MLDSA.bcParameters(paramSet); // validates paramSet
         this.paramSet = paramSet;
-        this.seed = new ByteContainer(memoryType);
+        this.seed = new KeyBytes(memoryType, SEED_LENGTH);
     }
 
     /**

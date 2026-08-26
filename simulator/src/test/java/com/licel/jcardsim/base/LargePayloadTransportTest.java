@@ -7,11 +7,10 @@ import apdu4j.core.ResponseAPDU;
 import com.licel.jcardsim.samples.EchoApplet;
 import com.licel.jcardsim.utils.AIDUtil;
 import javacard.framework.AID;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.testng.Assert.assertEquals;
 
 /**
  * Transport smoke test (plan item E2.2) for multi-KB payloads in both directions.
@@ -49,19 +48,23 @@ public class LargePayloadTransportTest {
         return data;
     }
 
-    @ParameterizedTest
-    @ValueSource(ints = {2592, 4627, 6000, 8192})
+    @DataProvider(name = "sizes")
+    public static Object[][] sizes() {
+        return new Object[][] {{2592}, {4627}, {6000}, {8192}};
+    }
+
+    @Test(dataProvider = "sizes")
     public void largePayloadRoundTrips(int size) {
         Simulator instance = prepareSimulator();
         byte[] input = pattern(size);
 
         try (var bibo = instance.connect()) {
             var sel = bibo.transmit(AIDUtil.select(AID));
-            assertEquals(0x9000, sel.getSW());
+            assertEquals(sel.getSW(), 0x9000);
 
             ResponseAPDU response = bibo.transmit(new CommandAPDU(CLA, INS_ECHO, 0x00, 0x00, input, size));
-            assertEquals(0x9000, response.getSW(), "large echo must succeed at " + size + " bytes");
-            assertArrayEquals(input, response.getData(), "echoed payload must round-trip byte-exact at " + size + " bytes");
+            assertEquals(response.getSW(), 0x9000, "large echo must succeed at " + size + " bytes");
+            assertEquals(response.getData(), input, "echoed payload must round-trip byte-exact at " + size + " bytes");
         }
     }
 }

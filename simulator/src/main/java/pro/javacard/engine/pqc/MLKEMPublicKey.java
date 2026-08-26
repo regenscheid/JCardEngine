@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 package pro.javacard.engine.pqc;
 
-import com.licel.jcardsim.crypto.ByteContainer;
 import javacard.framework.JCSystem;
 import javacard.security.CryptoException;
 import javacard.security.PublicKey;
@@ -11,7 +10,7 @@ import org.bouncycastle.crypto.params.MLKEMPublicKeyParameters;
 
 /**
  * ML-KEM (FIPS 203) encapsulation (public) key handle. Holds the raw encoded encapsulation key in
- * a {@link ByteContainer}.
+ * a a fixed-width {@link KeyBytes} slot.
  *
  * @see MLKEM
  */
@@ -21,7 +20,7 @@ public final class MLKEMPublicKey implements PublicKey {
     public static final byte TYPE_ML_KEM_PUBLIC = (byte) 0x74;
 
     private final byte paramSet;
-    private final ByteContainer encoded;
+    private final KeyBytes encoded;
 
     /**
      * Construct an uninitialized key in persistent memory.
@@ -41,7 +40,7 @@ public final class MLKEMPublicKey implements PublicKey {
     public MLKEMPublicKey(byte paramSet, byte memoryType) {
         MLKEM.bcParameters(paramSet); // validates paramSet
         this.paramSet = paramSet;
-        this.encoded = new ByteContainer(memoryType);
+        this.encoded = new KeyBytes(memoryType, MLKEM.encapsulationKeyLength(paramSet));
     }
 
     /**

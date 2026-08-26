@@ -4,27 +4,31 @@ package pro.javacard.engine.pqc;
 
 import com.licel.jcardsim.SimulatorCoreTest;
 import javacard.security.CryptoException;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.testng.Assert.*;
 
 /**
  * Functional tests for the ML-DSA extension API (plan items E1.2, E1.3, E1.5).
  */
 public class MLDSATest extends SimulatorCoreTest {
 
-    @AfterEach
-    void resetConfig() {
+    @AfterMethod
+    public void resetConfig() {
         PQCConfig.setEnabled(true);
         PQCConfig.setDeterministicSigning(false);
         PQCConfig.useSystemRandom();
+    }
+
+    @DataProvider(name = "paramSets")
+    public static Object[][] paramSets() {
+        return new Object[][] {
+                { MLDSA.ML_DSA_44 },
+                { MLDSA.ML_DSA_65 },
+                { MLDSA.ML_DSA_87 },
+        };
     }
 
     private static byte[] seed(int fill) {
@@ -35,9 +39,8 @@ public class MLDSATest extends SimulatorCoreTest {
         return xi;
     }
 
-    @ParameterizedTest
-    @ValueSource(bytes = {MLDSA.ML_DSA_44, MLDSA.ML_DSA_65, MLDSA.ML_DSA_87})
-    void generateSignVerifyRoundTrip(byte paramSet) {
+    @Test(dataProvider = "paramSets")
+    public void generateSignVerifyRoundTrip(byte paramSet) {
         MLDSAPublicKey pub = new MLDSAPublicKey(paramSet);
         MLDSAPrivateKey priv = new MLDSAPrivateKey(paramSet);
         MLDSA.generateKeyPair(pub, priv);
@@ -49,7 +52,7 @@ public class MLDSATest extends SimulatorCoreTest {
         byte[] sig = new byte[MLDSA.signatureLength(paramSet)];
         short n = MLDSA.sign(priv, msg, (short) 0, (short) msg.length, sig, (short) 0);
 
-        assertEquals(MLDSA.signatureLength(paramSet), n);
+        assertEquals(n, MLDSA.signatureLength(paramSet));
         assertTrue(MLDSA.verify(pub, msg, (short) 0, (short) msg.length, sig, (short) 0, n));
 
         // A tampered message must not verify.
@@ -57,9 +60,8 @@ public class MLDSATest extends SimulatorCoreTest {
         assertFalse(MLDSA.verify(pub, msg, (short) 0, (short) msg.length, sig, (short) 0, n));
     }
 
-    @ParameterizedTest
-    @ValueSource(bytes = {MLDSA.ML_DSA_44, MLDSA.ML_DSA_65, MLDSA.ML_DSA_87})
-    void seedImportIsDeterministic(byte paramSet) {
+    @Test(dataProvider = "paramSets")
+    public void seedImportIsDeterministic(byte paramSet) {
         byte[] xi = seed(7);
 
         MLDSAPublicKey pubA = new MLDSAPublicKey(paramSet);
@@ -74,11 +76,11 @@ public class MLDSATest extends SimulatorCoreTest {
         byte[] b = new byte[MLDSA.publicKeyLength(paramSet)];
         pubA.getEncoded(a, (short) 0);
         pubB.getEncoded(b, (short) 0);
-        assertArrayEquals(a, b, "same seed must yield the same public key");
+        assertEquals(a, b, "same seed must yield the same public key");
     }
 
     @Test
-    void seededKeygenIsReproducible() {
+    public void seededKeygenIsReproducible() {
         byte paramSet = MLDSA.ML_DSA_65;
         byte[] rngSeed = "deterministic-keygen".getBytes();
 
@@ -94,11 +96,11 @@ public class MLDSATest extends SimulatorCoreTest {
         byte[] b = new byte[MLDSA.publicKeyLength(paramSet)];
         pubA.getEncoded(a, (short) 0);
         pubB.getEncoded(b, (short) 0);
-        assertArrayEquals(a, b, "same RNG seed must yield the same generated key");
+        assertEquals(a, b, "same RNG seed must yield the same generated key");
     }
 
     @Test
-    void deterministicSigningIsReproducibleHedgedIsNot() {
+    public void deterministicSigningIsReproducibleHedgedIsNot() {
         byte paramSet = MLDSA.ML_DSA_65;
         MLDSAPublicKey pub = new MLDSAPublicKey(paramSet);
         MLDSAPrivateKey priv = new MLDSAPrivateKey(paramSet);
@@ -112,7 +114,7 @@ public class MLDSATest extends SimulatorCoreTest {
         byte[] d2 = new byte[len];
         MLDSA.sign(priv, msg, (short) 0, (short) msg.length, d1, (short) 0);
         MLDSA.sign(priv, msg, (short) 0, (short) msg.length, d2, (short) 0);
-        assertArrayEquals(d1, d2, "deterministic signing must be reproducible");
+        assertEquals(d1, d2, "deterministic signing must be reproducible");
 
         PQCConfig.setDeterministicSigning(false);
         byte[] h1 = new byte[len];
@@ -127,7 +129,7 @@ public class MLDSATest extends SimulatorCoreTest {
     }
 
     @Test
-    void externalMuRoundTrip() {
+    public void externalMuRoundTrip() {
         byte paramSet = MLDSA.ML_DSA_87;
         MLDSAPublicKey pub = new MLDSAPublicKey(paramSet);
         MLDSAPrivateKey priv = new MLDSAPrivateKey(paramSet);
@@ -143,7 +145,7 @@ public class MLDSATest extends SimulatorCoreTest {
     }
 
     @Test
-    void clearKeyZeroizes() {
+    public void clearKeyZeroizes() {
         MLDSAPublicKey pub = new MLDSAPublicKey(MLDSA.ML_DSA_44);
         MLDSAPrivateKey priv = new MLDSAPrivateKey(MLDSA.ML_DSA_44);
         MLDSA.generateKeyPair(pub, priv);
@@ -155,15 +157,15 @@ public class MLDSATest extends SimulatorCoreTest {
     }
 
     @Test
-    void disabledExtensionThrows() {
+    public void disabledExtensionThrows() {
         MLDSAPublicKey pub = new MLDSAPublicKey(MLDSA.ML_DSA_44);
         MLDSAPrivateKey priv = new MLDSAPrivateKey(MLDSA.ML_DSA_44);
         PQCConfig.setEnabled(false);
-        assertThrows(CryptoException.class, () -> MLDSA.generateKeyPair(pub, priv));
+        expectThrows(CryptoException.class, () -> MLDSA.generateKeyPair(pub, priv));
     }
 
     @Test
-    void invalidParamSetRejected() {
-        assertThrows(CryptoException.class, () -> new MLDSAPrivateKey((byte) 99));
+    public void invalidParamSetRejected() {
+        expectThrows(CryptoException.class, () -> new MLDSAPrivateKey((byte) 99));
     }
 }

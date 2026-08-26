@@ -5,8 +5,8 @@ package pro.javacard.engine.pqc;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.licel.jcardsim.SimulatorCoreTest;
-import org.junit.jupiter.api.DynamicTest;
-import org.junit.jupiter.api.TestFactory;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -14,9 +14,9 @@ import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
 
 /**
  * Known-answer tests (plan item E1.4) for the ML-DSA / ML-KEM extension API, driven by NIST ACVP
@@ -68,61 +68,76 @@ public class PQCKnownAnswerTest extends SimulatorCoreTest {
         }
     }
 
-    @TestFactory
-    List<DynamicTest> mldsaKeyGen() throws IOException {
-        List<DynamicTest> tests = new ArrayList<>();
+    @DataProvider(name = "mldsaKeyGenVectors")
+    public static Object[][] mldsaKeyGenVectors() throws IOException {
+        List<Object[]> rows = new ArrayList<>();
         for (JsonNode v : load("/pqc/acvp/ML-DSA-keyGen.json")) {
-            byte paramSet = mldsaParamSet(v.get("paramSet").asText());
-            byte[] seed = HEX.parseHex(v.get("seed").asText());
-            byte[] expectedPk = HEX.parseHex(v.get("pk").asText());
-            tests.add(DynamicTest.dynamicTest("ML-DSA keyGen " + v.get("paramSet").asText() + " tc" + v.get("tcId"), () -> {
-                MLDSAPublicKey pub = new MLDSAPublicKey(paramSet);
-                MLDSA.keyFromSeed(seed, (short) 0, pub, new MLDSAPrivateKey(paramSet));
-                byte[] pk = new byte[MLDSA.publicKeyLength(paramSet)];
-                pub.getEncoded(pk, (short) 0);
-                assertArrayEquals(expectedPk, pk);
-            }));
+            rows.add(new Object[] {
+                    "ML-DSA keyGen " + v.get("paramSet").asText() + " tc" + v.get("tcId"),
+                    mldsaParamSet(v.get("paramSet").asText()),
+                    HEX.parseHex(v.get("seed").asText()),
+                    HEX.parseHex(v.get("pk").asText())
+            });
         }
-        return tests;
+        return rows.toArray(new Object[0][]);
     }
 
-    @TestFactory
-    List<DynamicTest> mlkemKeyGen() throws IOException {
-        List<DynamicTest> tests = new ArrayList<>();
+    @Test(dataProvider = "mldsaKeyGenVectors")
+    public void mldsaKeyGen(String name, byte paramSet, byte[] seed, byte[] expectedPk) {
+        MLDSAPublicKey pub = new MLDSAPublicKey(paramSet);
+        MLDSA.keyFromSeed(seed, (short) 0, pub, new MLDSAPrivateKey(paramSet));
+        byte[] pk = new byte[MLDSA.publicKeyLength(paramSet)];
+        pub.getEncoded(pk, (short) 0);
+        assertEquals(pk, expectedPk, name);
+    }
+
+    @DataProvider(name = "mlkemKeyGenVectors")
+    public static Object[][] mlkemKeyGenVectors() throws IOException {
+        List<Object[]> rows = new ArrayList<>();
         for (JsonNode v : load("/pqc/acvp/ML-KEM-keyGen.json")) {
-            byte paramSet = mlkemParamSet(v.get("paramSet").asText());
-            byte[] seed = HEX.parseHex(v.get("seed").asText());
-            byte[] expectedEk = HEX.parseHex(v.get("ek").asText());
-            tests.add(DynamicTest.dynamicTest("ML-KEM keyGen " + v.get("paramSet").asText() + " tc" + v.get("tcId"), () -> {
-                MLKEMPublicKey pub = new MLKEMPublicKey(paramSet);
-                MLKEM.keyFromSeed(seed, (short) 0, pub, new MLKEMPrivateKey(paramSet));
-                byte[] ek = new byte[MLKEM.encapsulationKeyLength(paramSet)];
-                pub.getEncoded(ek, (short) 0);
-                assertArrayEquals(expectedEk, ek);
-            }));
+            rows.add(new Object[] {
+                    "ML-KEM keyGen " + v.get("paramSet").asText() + " tc" + v.get("tcId"),
+                    mlkemParamSet(v.get("paramSet").asText()),
+                    HEX.parseHex(v.get("seed").asText()),
+                    HEX.parseHex(v.get("ek").asText())
+            });
         }
-        return tests;
+        return rows.toArray(new Object[0][]);
     }
 
-    @TestFactory
-    List<DynamicTest> mldsaSigVer() throws IOException {
-        List<DynamicTest> tests = new ArrayList<>();
+    @Test(dataProvider = "mlkemKeyGenVectors")
+    public void mlkemKeyGen(String name, byte paramSet, byte[] seed, byte[] expectedEk) {
+        MLKEMPublicKey pub = new MLKEMPublicKey(paramSet);
+        MLKEM.keyFromSeed(seed, (short) 0, pub, new MLKEMPrivateKey(paramSet));
+        byte[] ek = new byte[MLKEM.encapsulationKeyLength(paramSet)];
+        pub.getEncoded(ek, (short) 0);
+        assertEquals(ek, expectedEk, name);
+    }
+
+    @DataProvider(name = "mldsaSigVerVectors")
+    public static Object[][] mldsaSigVerVectors() throws IOException {
+        List<Object[]> rows = new ArrayList<>();
         for (JsonNode v : load("/pqc/acvp/ML-DSA-sigVer.json")) {
-            byte paramSet = mldsaParamSet(v.get("paramSet").asText());
-            byte[] pk = HEX.parseHex(v.get("pk").asText());
-            byte[] msg = HEX.parseHex(v.get("message").asText());
-            byte[] sig = HEX.parseHex(v.get("signature").asText());
-            tests.add(DynamicTest.dynamicTest("ML-DSA sigVer " + v.get("paramSet").asText() + " tc" + v.get("tcId"), () -> {
-                MLDSAPublicKey pub = new MLDSAPublicKey(paramSet);
-                pub.setEncoded(pk, (short) 0, (short) pk.length);
-                assertTrue(MLDSA.verify(pub, msg, (short) 0, (short) msg.length, sig, (short) 0, (short) sig.length),
-                        "NIST signature must verify");
-                byte[] tampered = msg.clone();
-                tampered[0] ^= 0x01;
-                assertFalse(MLDSA.verify(pub, tampered, (short) 0, (short) tampered.length, sig, (short) 0, (short) sig.length),
-                        "tampered message must not verify");
-            }));
+            rows.add(new Object[] {
+                    "ML-DSA sigVer " + v.get("paramSet").asText() + " tc" + v.get("tcId"),
+                    mldsaParamSet(v.get("paramSet").asText()),
+                    HEX.parseHex(v.get("pk").asText()),
+                    HEX.parseHex(v.get("message").asText()),
+                    HEX.parseHex(v.get("signature").asText())
+            });
         }
-        return tests;
+        return rows.toArray(new Object[0][]);
+    }
+
+    @Test(dataProvider = "mldsaSigVerVectors")
+    public void mldsaSigVer(String name, byte paramSet, byte[] pk, byte[] msg, byte[] sig) {
+        MLDSAPublicKey pub = new MLDSAPublicKey(paramSet);
+        pub.setEncoded(pk, (short) 0, (short) pk.length);
+        assertTrue(MLDSA.verify(pub, msg, (short) 0, (short) msg.length, sig, (short) 0, (short) sig.length),
+                name + ": NIST signature must verify");
+        byte[] tampered = msg.clone();
+        tampered[0] ^= 0x01;
+        assertFalse(MLDSA.verify(pub, tampered, (short) 0, (short) tampered.length, sig, (short) 0, (short) sig.length),
+                name + ": tampered message must not verify");
     }
 }
