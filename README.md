@@ -4,7 +4,7 @@ The `main` branch contains the classical simulator used with the companion
 OpenFIPS201 applet and piv-test tools. Experimental post-quantum extensions are
 maintained separately on `pqc`.
 
-Build and run the local test suite on macOS or Ubuntu with a JDK 17 or newer:
+Build and run the local test suite on macOS or Ubuntu with Git, curl (or wget), and a JDK 17 or newer:
 
 ```sh
 git clone --branch main --recurse-submodules https://github.com/regenscheid/JCardEngine.git
