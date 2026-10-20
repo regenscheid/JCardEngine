@@ -3,64 +3,39 @@
 package pro.javacard.engine.globalplatform;
 
 import apdu4j.core.CommandAPDU;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import pro.javacard.engine.JavaCardEngine;
+import pro.javacard.tlv.TLV;
 import pro.javacard.gp.GPSession;
 
 import java.util.EnumSet;
 
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotEquals;
 import static pro.javacard.engine.globalplatform.GPTestUtils.openIsd;
 
-// Issue #7: a SCP03-wrapped command larger than a short APDU is split by gp-pro into chained
-// APDUs (CLA & 0x10). The SD must reassemble the chunks before unwrapping/MAC-checking, otherwise
-// the C-MAC (computed over the full command) fails on the first chunk and process_mac throws 6985.
 public class CommandChainingTest {
-
-    // An INS the SecurityDomainApplet does not handle: a successful unwrap reaches the dispatch
-    // default and returns 6D00 (INS_NOT_SUPPORTED). A failed C-MAC instead returns 6985 from
-    // process_mac. This isolates "did the chained command unwrap+MAC-validate" from any handler.
-    private static final int UNKNOWN_INS = 0xEE;
-
-    @Test
-    public void chainedCommandReassembledAndMacValidated_macMode() throws Exception {
-        var sim = new JavaCardEngine.Builder().build();
-        try (var bibo = sim.connect()) {
-            GPSession gp = openIsd(bibo, EnumSet.of(GPSession.APDUMode.MAC));
-            // 300-byte data field: MAC-wrapped form exceeds 255, so gp-pro chains it.
-            var resp = gp.transmit(new CommandAPDU(0x80, UNKNOWN_INS, 0x00, 0x00, new byte[300]));
-            System.out.println(">>> MAC-mode chained SW = " + String.format("%04X", resp.getSW()));
-            assertNotEquals(0x6985, resp.getSW(), "C-MAC must validate over the reassembled chained command");
-            assertEquals(0x6D00, resp.getSW(), "unwrap should succeed and reach the unknown-INS dispatch default");
-        }
+    @DataProvider(name = "commands")
+    public static Object[][] commands() {
+        return new Object[][] {{300, false}, {300, true}, {6000, false}, {6000, true}};
     }
 
-    @Test
-    public void chainedCommandReassembledAndMacValidated_encMode() throws Exception {
+    @Test(dataProvider = "commands")
+    public void reassembledCommandPassesMacAndReachesHandler(int size, boolean encrypted) throws Exception {
         var sim = new JavaCardEngine.Builder().build();
-        try (var bibo = sim.connect()) {
-            GPSession gp = openIsd(bibo, EnumSet.of(GPSession.APDUMode.MAC, GPSession.APDUMode.ENC));
-            var resp = gp.transmit(new CommandAPDU(0x80, UNKNOWN_INS, 0x00, 0x00, new byte[300]));
-            System.out.println(">>> ENC-mode chained SW = " + String.format("%04X", resp.getSW()));
-            assertNotEquals(0x6985, resp.getSW(), "C-MAC must validate over the reassembled chained command (ENC)");
-            assertEquals(0x6D00, resp.getSW(), "unwrap should succeed and reach the unknown-INS dispatch default (ENC)");
+        var mode = EnumSet.of(GPSession.APDUMode.MAC);
+        if (encrypted) {
+            mode.add(GPSession.APDUMode.ENC);
         }
-    }
-
-    // E2.2 frame-count smoke test: a >5 KB wrapped command (the magnitude of an ML-DSA-87
-    // GENERAL AUTHENTICATE payload) splits into ~24 chained 255-byte chunks. The SD must
-    // reassemble all of them before unwrap/MAC-check — this exercises the chunk loop far past
-    // the 2-chunk case above and catches any frame-count assumption in the reassembly path.
-    @Test
-    public void largeChainedCommandReassembledOverManyFrames() throws Exception {
-        var sim = new JavaCardEngine.Builder().build();
         try (var bibo = sim.connect()) {
-            GPSession gp = openIsd(bibo, EnumSet.of(GPSession.APDUMode.MAC));
-            var resp = gp.transmit(new CommandAPDU(0x80, UNKNOWN_INS, 0x00, 0x00, new byte[6000]));
-            System.out.println(">>> large chained SW = " + String.format("%04X", resp.getSW()));
-            assertNotEquals(0x6985, resp.getSW(), "C-MAC must validate over the reassembled >5 KB chained command");
-            assertEquals(0x6D00, resp.getSW(), "reassembly of all chunks should succeed and reach the unknown-INS default");
+            var gp = openIsd(bibo, mode);
+            // GP chains DELETE using P1.b8. A valid TLV without the required 4F AID reaches
+            // the DELETE handler and returns 6A80 after the complete command's MAC is checked
+            // and its body decrypted. A broken chain fails before this, usually with 6985.
+            // 6000 bytes crosses more than twenty short-APDU frames.
+            byte[] payload = TLV.of(0xC1, new byte[size]).encode();
+            var response = gp.transmit(new CommandAPDU(0x80, 0xE4, 0, 0, payload));
+            assertEquals(response.getSW(), 0x6A80, "Authenticated command must reach DELETE validation");
         }
     }
 }

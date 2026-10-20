@@ -1,3 +1,31 @@
+# PQC PIV simulator
+
+The `pqc` branch adds experimental ML-DSA and ML-KEM APIs to the classical
+simulator on `main`. Use it with the matching OpenFIPS201 and piv-test `pqc`
+revisions pinned by their lock files. ML-DSA-65 is the initial signing target;
+BouncyCastle is explicitly pinned to 1.84.
+
+Build and run the local test suite on macOS or Ubuntu with Git, curl (or wget), and a JDK 17 or newer:
+
+```sh
+git clone --branch pqc --recurse-submodules https://github.com/regenscheid/JCardEngine.git
+cd JCardEngine
+./scripts/build.sh
+java -jar tool/target/jcard.jar --help
+```
+
+The build initializes the pinned Java Card SDK submodule, installs its API JARs,
+runs the simulator tests, verifies test CAPs, and creates `tool/target/jcard.jar`.
+GlobalPlatformPro is pinned to published version `26.06.04`; the CAP build uses
+ant-javacard `v26.05.15` with a checked SHA-256 digest. Build tools and test
+outputs are generated locally. `JAVA_HOME` may select another supported JDK.
+
+Inherited GitHub workflows have manual triggers only while local validation is
+being established. The complete applet/provisioning smoke test is in piv-test:
+`python tools/stack.py smoke` after building its pinned stack.
+
+## Upstream project
+
 
 
 [![Latest release](https://img.shields.io/github/release/martinpaljak/jcardengine/all.svg)](https://github.com/martinpaljak/jcardengine/releases/latest)
