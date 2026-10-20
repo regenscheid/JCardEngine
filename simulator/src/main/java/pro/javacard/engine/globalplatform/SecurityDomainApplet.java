@@ -1000,7 +1000,6 @@ public class SecurityDomainApplet extends Applet {
 
     // GPC v2.3.1 11.8.2.3.1: a key component is a 1-byte opaque type + BER length + value, not a BER-TLV
     // (the byte A1 would otherwise read as a constructed tag), so the parser uses an opaque single-byte tag.
-    private static final TLVParser KEY_COMPONENTS = TLVParser.of(Tag.Codec.SINGLE_BYTE, Len.Codec.BER, false);
 
     // GPC v2.3.1 11.8.2.3.6 Table 11-75: RSA public key components (modulus A1, exponent A0) arrive in
     // the clear; the trailing KCV length is 00 because public keys carry no key check value.
@@ -1011,7 +1010,14 @@ public class SecurityDomainApplet extends Applet {
             if (type != KeySet.TYPE_RSA_PUB_MOD && type != KeySet.TYPE_RSA_PUB_EXP) {
                 break;
             }
-            components.add(new KeySet.KeyComponent(type, KEY_COMPONENTS.parseOne(bb).value()));
+            bb.get(); // opaque one-byte component type, not a constructed BER tag
+            int length = Len.ber(bb);
+            if (length < 0 || length > bb.remaining()) {
+                ISOException.throwIt(ISO7816.SW_WRONG_DATA);
+            }
+            byte[] value = new byte[length];
+            bb.get(value);
+            components.add(new KeySet.KeyComponent(type, value));
         }
         if (components.isEmpty() || !bb.hasRemaining()) {
             ISOException.throwIt(ISO7816.SW_WRONG_DATA);

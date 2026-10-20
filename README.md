@@ -1,3 +1,30 @@
+# Classical PIV simulator baseline
+
+The `main` branch contains the classical simulator used with the companion
+OpenFIPS201 applet and piv-test tools. Experimental post-quantum extensions are
+maintained separately on `pqc`.
+
+Build and run the local test suite on macOS or Ubuntu with a JDK 17 or newer:
+
+```sh
+git clone --branch main --recurse-submodules https://github.com/regenscheid/JCardEngine.git
+cd JCardEngine
+./scripts/build.sh
+java -jar tool/target/jcard.jar --help
+```
+
+The build initializes the pinned Java Card SDK submodule, installs its API JARs,
+runs the simulator tests, verifies test CAPs, and creates `tool/target/jcard.jar`.
+GlobalPlatformPro is pinned to published version `26.06.04`; the CAP build uses
+ant-javacard `v26.05.15` with a checked SHA-256 digest. Build tools and test
+outputs are generated locally. `JAVA_HOME` may select another supported JDK.
+
+Inherited GitHub workflows have manual triggers only while local validation is
+being established. The complete applet/provisioning smoke test is in piv-test:
+`python tools/stack.py smoke` after building its pinned stack.
+
+## Upstream project
+
 
 
 [![Latest release](https://img.shields.io/github/release/martinpaljak/jcardengine/all.svg)](https://github.com/martinpaljak/jcardengine/releases/latest)
